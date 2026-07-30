@@ -1,0 +1,87 @@
+Drive to Alamogordo, New Mexico: 15 minutes from White Sand Dunes National Park New Mexico
+
+Start from Dallas, Texas
+3 hours to Abilene, Texas after driving about 180 miles / 290 km
+3.5 hours to Hobbs, New Mexico after driving about 210 miles / 340 km
+3.5 hours to Alamogordo, New Mexico after driving about 190 miles / 300 km
+
+Alamogordo, New Mexico rentals
+
+https://www.vrbo.com/1166061?chkin=2024-08-31&chkout=2024-09-02&d1=2024-08-31&d2=2024-09-02&startDate=2024-08-31&endDate=2024-09-02&x_pwa=1&rfrr=HSR&pwa_ts=1725028359354&referrerUrl=aHR0cHM6Ly93d3cudnJiby5jb20vSG90ZWwtU2VhcmNo&useRewards=false&adults=2&children=1_5%2C1_1&regionId=6054974&destination=Alamogordo%2C+New+Mexico%2C+United+States+of+America&destType=MARKET&latLong=32.899533%2C-105.960265&privacyTrackingState=CAN_TRACK&searchId=5efdabe0-766e-4ed0-9eb0-f12c4b450520&sort=RECOMMENDED&top_dp=99&top_cur=USD&userIntent=&selectedRoomType=34338023&selectedRatePlan=0004e81215ddcd084935a9da4f35cf44124d&expediaPropertyId=34338023&propertyName=Yes+As+Good+As+Home.
+
+
+https://www.airbnb.com/rooms/682761368540404508?adults=2&children=1&infants=1&search_mode=regular_search&check_in=2024-09-02&check_out=2024-09-03&source_impression_id=p3_1725028606_P3yFnN90GQsuLBYw&previous_page_section_name=1000&federated_search_id=018cb5a9-043c-47cf-badb-9bd038b13f5c
+
+
+
+•	Goldengate issue on Rptprd db.
+•	ADS agent connectivity issues resolved on all servers.
+•	A1wprd data shrink activity.
+•	ADS alert report on Ucmdev database on Dlucmvmdb02 server whitelisted.
+•	Cxpprd table data drop / truncate request follow-up.
+•	SOX dpar cleanup.
+•	Approval and Implement DPAR’s.
+•	Application KT scheduling.
+•	Iapprd2 data sync issues transferring files between Pliapvmdb41 and 51 servers.
+
+
+
+
+•	Plrfavmdb01 successfully upgraded from RHEL 7 to 8 [CR125113].
+•	SOX DPAR report cleanup.
+•	A1SR release support.
+•	ADS agent issue follow-up with Rimini Street related to Foxpass and PingID.
+•	Application KT session on Tuesday Oct 15th at 11.00 AM EST.
+•	Azure migrations support: I have placed the below databases in backup mode:
+a.	plptlovdb01 
+b.	plptlovdb02
+c.	plgscvmdb01
+
+
+
+
+
+
+•	Gcttst2 and Esmrept Goldengate sync issue resolved.
+•	Plrfavmdb01 RHEL7 to 8 OS upgrade planned for Sunday night [ CR125113].
+•	Azure Migrations Support: Ended backup mode on below databases. Postponed to Oct 18th.
+o	Plgtpvmdb01
+o	Plgspvmdb01
+o	Plagivmdb02
+•	ADS agent connectivity issues related to Foxpass and Pingid on OEL 5 / 6 db servers.
+•	Data Sync between Pliapvmdb41 and Pliapvmdb51 [CR125488].
+•	DPAR Approvals and Implements.
+•	SOX DPAR report cleanup.
+
+
+
+
+•	Sppprd2 metric process limit alerts.
+•	Azure Migrations for Oct 10th being planned for below db servers:
+o	Plgtpvmdb01
+o	Plgspvmdb01
+o	Plagivmdb02
+•	ADS agent connectivity issues related to Foxpass and Pingid on db servers.
+•	Pa0xui DB AWR Report, audit connection data provided to app team as requested.
+•	DPAR Approvals and Implements.
+
+
+
+
+
+safe to run
+kill the sessions
+send email to rfa team
+proof that it runs and 
+document the test plan
+
+
+followup with rimini on oel5 
+
+wiki page on recent history on csq deadlock
+
+
+
+
+
+nohup rsync -a host:/path/ host:/path/ &

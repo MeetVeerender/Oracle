@@ -1,0 +1,89 @@
+cd /opt/NetApp/santools/bin
+
+
+alter user OK_SEARCH_86   account unlock;
+alter user OK_IM_86       account unlock;
+alter user ODI_WORK       account unlock;
+alter user DW_REPORTING   account unlock;
+alter user DW_STAGE       account unlock;
+alter user STG_ODI_REPO   account unlock;
+alter user STG_STB        account unlock;
+alter user STG_OPSS       account unlock;
+alter user STG_IAU        account unlock;
+alter user STG_IAU_APPEND account unlock;
+alter user STG_IAU_VIEWER account unlock;
+alter user STG_BIPLATFORM account unlock;
+alter user STG_MDS        account unlock;
+alter user STG_WLS        account unlock;
+alter user STG_ODI_STB    account unlock;
+alter user STG_ODI_WLS    account unlock;
+
+
+
+    (root) NOPASSWD: /etc/init.d/mfe-dbs-sensor stop
+    (root) NOPASSWD: /etc/init.d/mfe-dbs-sensor start
+    (root) NOPASSWD: /etc/init.d/mfe-dbs-sensor status
+    (root) NOPASSWD: /sbin/service mfe-dbs-sensor start
+    (root) NOPASSWD: /sbin/service mfe-dbs-sensor stop
+    (root) NOPASSWD: /sbin/service mfe-dbs-sensor status
+    (root) NOPASSWD: /usr/bin/rpm -e mfe-dbs-sensor
+    (root) NOPASSWD: /usr/bin/vi /etc/sysconfig/mfe-dbs-sensor
+    (root) NOPASSWD: /usr/bin/view var/log/mcafee/*
+    (root) NOPASSWD: /usr/bin/view /var/log/mfe-dbs-sensor/*
+    (root) NOPASSWD: /usr/bin/rm /var/log/mcafee/*
+    (root) NOPASSWD: /usr/bin/rm /var/log/mfe-dbs-sensor/*
+    (root) NOPASSWD: /usr/bin/su mfedbs
+    (root) NOPASSWD: /sbin/service mfe-dbs-sensor create_analytic_package
+    (root) NOPASSWD: /etc/init.d/mfe-dbs-sensor create_analytic_package
+	
+
+January 7th Tuesday 10.00 AM CST, 11.00 AM CST, 2.00 PM CST, 3.00 PM CST
+
+January 8th Wednesday 10.00 AM CST, 11.00 AM CST, 2.00 PM CST, 3.00 PM CST
+
+January 9th Thursday 11.00 AM CST, 1.00 PM CST, 2.00 PM CST
+
+January 10th Friday 10.00 AM CST, 11.00 AM CST, 2.00 PM CST, 3.00 PM CST
+
+
+469-902-9079
+tiezah anderson
+
+•	Csqprd deadlock error follow-up with A1SR app team.
+a.	I have send few trace files to the app team on request.
+•	A1S app KT session scheduled for Jan 9th.
+•	Rimini Street support ticket created for Plrstvmap01 log fs alert.
+
+
+•	Script run to lock unused accounts in legacy databases.
+•	Request to create new lnd_backup account in Gscprd db.
+•	CXP and UCM integration issues.
+•	Pa0ssdp session max limit reached.
+o	Inactive sessions stuck in the db since Nov’14th.
+o	Cleared the old sessions to fix the issue.
+•	Rdwprd sysaux tablespace alert.
+•	Approval and implement dpar’s.
+
+
+what new items are being worked to add to project sheet
+what we think the server
+
+
+
+
+
+
+change of address
+sell  the property
+
+
+https://eeho.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/jobsearch/requisitions/preview/272884/?keyword=Oracle+database&location=Dallas+Fort+Worth+Airport%2C+TX%2C+United+States&locationId=100000000727953&locationLevel=city&mode=location&radius=25&radiusUnit=MI
+
+
+Database – Principal Advanced Support Engineer
+
+272884
+
+
+https://www.vanguardjobs.com/job/21436340/sailpoint-technical-lead-dallas-tx/?source=Corporate_Website#gtm-jobdetail-desc
+

@@ -1,0 +1,74 @@
+create or replace PACKAGE           APSQT.pkg_mail
+AS
+   TYPE array IS TABLE OF VARCHAR2(255);
+
+   PROCEDURE APSQT.send (p_sender_email   IN VARCHAR2,
+                   p_from           IN VARCHAR2 DEFAULT NULL,
+                   p_to             IN array DEFAULT array (),
+                   p_cc             IN array DEFAULT array (),
+                   p_bcc            IN array DEFAULT array (),
+                   p_subject        IN VARCHAR2 DEFAULT NULL,
+                   p_body           IN LONG DEFAULT NULL);
+
+   PROCEDURE APSQT.html_email (p_to        IN array,
+                         p_from      IN VARCHAR2,
+                         p_subject   IN VARCHAR2,
+                         p_html      IN CLOB DEFAULT NULL);
+
+   PROCEDURE APSQT.html_email (p_to        IN array,
+                         p_cc        IN array,
+                         p_from      IN VARCHAR2,
+                         p_subject   IN VARCHAR2,
+                         p_html      IN CLOB DEFAULT NULL);
+
+   PROCEDURE APSQT.html_email (p_to        IN array,
+                         p_cc        IN array,
+                         p_bcc       IN array,
+                         p_from      IN VARCHAR2,
+                         p_subject   IN VARCHAR2,
+                         p_html      IN CLOB DEFAULT NULL);
+
+   FUNCTION APSQT.address_email_html (p_recipients IN array)
+      RETURN VARCHAR2;
+
+   PROCEDURE APSQT.FILE_ATTACH_SEND (P_FROM        IN VARCHAR2,
+                               P_TO          IN Array,
+                               P_TITLE       IN VARCHAR2,
+                               P_BODY        IN VARCHAR2,
+                               P_FILE_NAME   IN VARCHAR2,
+                               P_MIME_TYPE   IN VARCHAR2,
+                               P_CONTENT     IN BLOB);
+
+   PROCEDURE APSQT.send_attach_varchar2 (
+     
+
+      p_sender          IN VARCHAR2,
+      p_recipients      IN VARCHAR2,
+      p_cc              IN VARCHAR2 DEFAULT NULL,
+      p_bcc             IN VARCHAR2 DEFAULT NULL,
+      p_subject         IN VARCHAR2 DEFAULT NULL,
+      p_message         IN VARCHAR2,
+      p_mime_type       IN VARCHAR2 DEFAULT 'text/plain; charset=us-ascii',
+      p_priority        IN PLS_INTEGER DEFAULT NULL,
+      p_attachment      IN VARCHAR2,
+      p_att_inline      IN BOOLEAN DEFAULT TRUE,
+      p_att_mime_type   IN VARCHAR2 DEFAULT 'application/octet',
+      p_att_filename    IN VARCHAR2,
+      p_replyto         IN VARCHAR2 DEFAULT NULL);
+
+
+
+   PROCEDURE APSQT.send_attach_clob (
+                               p_from          IN VARCHAR2,
+                               p_to            IN VARCHAR2,
+                               p_cc            IN VARCHAR2 DEFAULT NULL,
+                               p_bcc           IN VARCHAR2 DEFAULT NULL,
+                               p_subject       IN VARCHAR2,
+                               p_text_msg      IN VARCHAR2,
+                               p_attach_name   IN VARCHAR2,
+                               p_attach_mime   IN VARCHAR2 DEFAULT NULL,
+                               p_attach_clob   IN CLOB,
+                               p_smtp_host     IN VARCHAR2 DEFAULT NULL,
+                               p_smtp_port     IN NUMBER DEFAULT 25);
+
+END pkg_mail;

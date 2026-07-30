@@ -1,0 +1,182 @@
+SQL> update gpglobal.GPSCHEDULEDJOBGROUP set ENABLED=0;
+
+2 rows updated.
+
+SQL> commit;
+
+Commit complete.
+
+SQL> UPDATE GPCOMP1.GPCONT SET EMAIL= ‘TST’ || EMAIL WHERE EMAIL IS NOT NULL;
+UPDATE GPCOMP1.GPCONT SET EMAIL= ‘TST’ || EMAIL WHERE EMAIL IS NOT NULL
+                                 *
+ERROR at line 1:
+ORA-00904: "???TST???": invalid identifier
+
+
+SQL> UPDATE GPCOMP1.GPCONT SET EMAIL='TST'||EMAIL WHERE EMAIL IS NOT NULL;
+
+78873 rows updated.
+
+SQL> commit;
+
+Commit complete.
+
+SQL> UPDATE GPCOMP1.ARCUST SET EMAIL= ‘TST’ || EMAIL WHERE EMAIL IS NOT NULL^C
+
+SQL>
+SQL>
+SQL>
+SQL> UPDATE GPCOMP1.ARCUST SET EMAIL='TST'||EMAIL WHERE EMAIL IS NOT NULL;
+
+0 rows updated.
+
+SQL> commit;
+
+Commit complete.
+
+SQL>
+
+
+
+alter user GPACCESS account unlock;
+alter user GPCARNOT      account unlock;
+alter user GPCOMP1       account unlock;
+alter user GPCOMP1_ARCH  account unlock;
+alter user GPDASHBOARD   account unlock;
+alter user GPGLOBAL      account unlock;
+alter user GPMAINUSER    account unlock;
+
+GPGLOBAL.GPCLIENT,GPGLOBAL.GPSYST,GPGLOBAL.GPSYST_PROP
+
+
+
+1.	GPGLOBAL.GPCLIENT
+2.	GPGLOBAL.GPSYST
+3.	GPGLOBAL.GPCOMDEF,GPGLOBAL.GPLINKDEF 
+5.	GPGLOBAL.GPSYST_PROP
+6.	GPGLOBAL.GPSSOSETTINGS
+
+
+
+BEGIN
+  DBMS_REDEFINITION.REDEF_TABLE(
+    uname => 'GPCOMP1',
+    tname => 'GPCORRHISTATT',
+    table_compression_type => 'ROW STORE COMPRESS ADVANCED',
+    table_part_tablespace => 'GP_DATA',
+    lob_compression_type => 'COMPRESS LOW',
+    lob_tablespace => 'GP_DATA',
+    lob_store_as => 'SECUREFILE');
+END;
+/
+
+
+BEGIN
+  DBMS_REDEFINITION.REDEF_TABLE(
+    uname => 'OVAC',
+    tname => 'BRE_XML_REQ',
+    table_compression_type => 'ROW STORE COMPRESS ADVANCED',
+    table_part_tablespace => 'OVAC_DATA_TABSPACE_1',
+    lob_compression_type => 'COMPRESS LOW',
+    lob_tablespace => 'OVAC_DATA_TABSPACE_1',
+    lob_store_as => 'SECUREFILE');
+END;
+/
+
+
+
+BEGIN
+  DBMS_REDEFINITION.REDEF_TABLE(
+    uname => 'GPCOMP1',
+    tname => 'GPCORRHIST',
+    table_compression_type => 'ROW STORE COMPRESS ADVANCED',
+    table_part_tablespace => 'GP_DATA',
+    lob_compression_type => 'COMPRESS LOW',
+    lob_tablespace => 'GP_DATA',
+    lob_store_as => 'SECUREFILE');
+END;
+/
+
+
+
+
+
+remap_table=GPGLOBAL.GPCOMDEF:GPCOMDEF_20240222
+remap_table=GPGLOBAL.GPLINKDEF:GPLINKDEF_20240222
+tables=(GPGLOBAL.GPCOMDEF,GPGLOBAL.GPLINKDEF)
+
+
+GPGLOBAL.GPCOMDEF:GPCOMDEF_20240222 GPGLOBAL.GPLINKDEF:GPLINKDEF_20240222
+
+
+
+grant CREATE ANY TABLE to odba;
+
+grant  ALTER ANY TABLE to odba;
+
+grant  DROP ANY TABLE to odba;
+
+grant LOCK ANY TABLE to odba;
+
+grant SELECT ANY TABLE to odba;
+
+
+
+grant REDEFINE ANY TABLE  to odba;
+grant ADMINISTER DATABASE TRIGGER to odba;
+grant ALTER ANY INDEX to odba; 
+grant ALTER ANY MATERIALIZED VIEW to odba;
+grant ALTER ANY SEQUENCE to odba;
+grant ALTER ANY TRIGGER to odba;
+grant CREATE ANY INDEX to odba;
+grant CREATE ANY MATERIALIZED VIEW to odba;
+grant CREATE ANY SEQUENCE to odba;
+grant CREATE ANY TABLE to odba;
+grant CREATE ANY TRIGGER to odba;
+grant CREATE ANY VIEW to odba;
+grant CREATE MATERIALIZED VIEW to odba;
+grant CREATE SESSION to odba;
+grant CREATE VIEW to odba;
+grant DROP ANY INDEX to odba;
+grant DROP ANY MATERIALIZED VIEW to odba;
+grant DROP ANY SEQUENCE to odba;
+grant DROP ANY TRIGGER to odba;
+grant DROP ANY VIEW to odba;
+grant EXECUTE ANY PROCEDURE to odba;
+grant INSERT ANY TABLE to odba;
+grant MERGE ANY VIEW to odba;
+grant SELECT ANY DICTIONARY to odba;
+grant SELECT ANY TABLE to odba;
+grant UNDER ANY VIEW to odba;
+grant UPDATE ANY TABLE to odba;
+
+
+rkannojia
+
+
+create user rkannojia identified by MTuA89ZK_OP default tablespace USERS temporary tablespace TEMP profile PROFILE_EXPIRE account UNLOCK;
+----grant PIEREAD to rkannojia;
+grant CREATE SESSION to rkannojia;
+alter user rkannojia quota 1024M on USERS;
+
+
+lerouxe
+
+
+create user lerouxe identified by MTuA89ZK_OP default tablespace USERS temporary tablespace TEMP profile PROFILE_EXPIRE account UNLOCK;
+-- Roles:
+grant PPR_KBOLTON_READONLY to lerouxe;
+-- System privileges:
+grant CREATE PROCEDURE to lerouxe;
+grant CREATE SEQUENCE to lerouxe;
+grant CREATE SESSION to lerouxe;
+grant CREATE TABLE to lerouxe;
+grant CREATE TRIGGER to lerouxe;
+grant CREATE VIEW to lerouxe;
+-- Object privileges:
+Must be run as PPR: grant SELECT on PPR.CGPPR_PPU_OFFERTYPE to lerouxe;
+Must be run as PPR: grant SELECT on PPR.CGPPR_PPU_SVCTYPE to lerouxe;
+Must be run as PPR: grant SELECT on PPR.CGPPR_USER to lerouxe;
+-- Column privileges:
+-- Quotas:
+alter user lerouxe quota unlimited on USERS;

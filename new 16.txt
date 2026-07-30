@@ -1,0 +1,100 @@
+"ORA-06550: line 1, column 757:
+PLS-00103: Encountered the symbol "AS" when expecting one of the following:
+
+   ( begin case declare exit for goto if loop mod null pragma
+   raise return select update while with <an identifier>
+   <a double-quoted delimited-identifier> <a bind variable> <<
+   continue close current delete fetch lock insert open rollback
+   savepoint set sql execute commit forall merge pipe purge
+   json_exists json_value json_query json_object json_array
+"
+
+
+
+
+"ORA-04067: not executed, package body "APSQT.A1S_PKG_LOGGING" does not exist
+ORA-06508: PL/SQL: could not find program unit being called: "APSQT.A1S_PKG_LOGGING"
+ORA-06512: at "APSQT.PKG_LOGGING", line 12
+ORA-06512: at "APSQT.PKG_MAIL", line 711
+ORA-04067: not executed, package body "APSQT.A1S_PKG_LOGGING" does not exist
+ORA-06508: PL/SQL: could not find program unit being called: "APSQT.A1S_PKG_LOGGING"
+ORA-06512: at "APSQT.PKG_LOGGING", line 12
+ORA-06512: at "APSQT.PKG_MAIL", line 644
+ORA-04067: not executed, package body "APSQT.A1S_PKG_LOGGING" does not exist
+ORA-06508: PL/SQL: could not find program unit being called: "APSQT.A1S_PKG_LOGGING"
+ORA-06512: at "APSQT.PKG_LOGGING", line 12
+ORA-06512: at "APSQT.PKG_MAIL", line 621
+ORA-06512: at "APSQT.PKG_MAIL", line 652
+ORA-06512: at "OEMAPPMONITOR.GENERATE_ASH_REPORT", line 44
+"
+
+
+
+
+
+Package Body A1S_PKG_COMMON compiled
+
+LINE/COL  ERROR
+--------- -------------------------------------------------------------
+178/9     PL/SQL: SQL Statement ignored
+180/16    PL/SQL: ORA-00942: table or view does not exist
+389/17    PL/SQL: SQL Statement ignored
+389/24    PL/SQL: ORA-02289: sequence does not exist
+646/9     PL/SQL: SQL Statement ignored
+646/21    PL/SQL: ORA-00942: table or view does not exist
+655/13    PL/SQL: SQL Statement ignored
+657/20    PL/SQL: ORA-00942: table or view does not exist
+674/9     PL/SQL: SQL Statement ignored
+674/21    PL/SQL: ORA-00942: table or view does not exist
+683/13    PL/SQL: SQL Statement ignored
+685/20    PL/SQL: ORA-00942: table or view does not exist
+702/9     PL/SQL: SQL Statement ignored
+702/21    PL/SQL: ORA-00942: table or view does not exist
+711/13    PL/SQL: SQL Statement ignored
+713/20    PL/SQL: ORA-00942: table or view does not exist
+747/13    PL/SQL: SQL Statement ignored
+759/57    PL/SQL: ORA-00942: table or view does not exist
+818/9     PL/SQL: SQL Statement ignored
+881/30    PL/SQL: ORA-00942: table or view does not exist
+Errors: check compiler log
+
+
+
+
+
+
+
+
+  CREATE TABLE "APSQT"."CODE" 
+   (	"AREA" NUMBER CONSTRAINT "C_CODE_AREA" NOT NULL ENABLE, 
+	"ITEM" NUMBER CONSTRAINT "C_CODE_ITEM" NOT NULL ENABLE, 
+	"LANGUAGEID" NUMBER CONSTRAINT "C_CODE_LANGUAGEID" NOT NULL ENABLE, 
+	"VALUE" VARCHAR2(100 CHAR), 
+	 CONSTRAINT "PK_CODE" PRIMARY KEY ("AREA", "ITEM", "LANGUAGEID")
+  USING INDEX (CREATE UNIQUE INDEX "APSQT"."IDX_CODE_AREA_ITEM_LANGUAGEID" ON "APSQT"."CODE" ("AREA", "ITEM", "LANGUAGEID") 
+  PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
+  STORAGE(INITIAL 2129920 NEXT 65536 MINEXTENTS 1 MAXEXTENTS 2147483645
+  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
+  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
+  TABLESPACE "APSQT_INDX" )  ENABLE
+   ) SEGMENT CREATION IMMEDIATE 
+  PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255 
+ ROW STORE COMPRESS ADVANCED LOGGING
+  STORAGE(INITIAL 2129920 NEXT 65536 MINEXTENTS 1 MAXEXTENTS 2147483645
+  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
+  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
+  TABLESPACE "APSQT_DATA" ;
+
+  CREATE INDEX "APSQT"."IDX_CODE_AREA_LANGUAGEID" ON "APSQT"."CODE" ("AREA", "LANGUAGEID") 
+  PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
+  STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
+  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
+  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
+  TABLESPACE "APSQT_INDX" ;
+
+  CREATE INDEX "APSQT"."IDX_CODE_ITEM_AREA" ON "APSQT"."CODE" ("ITEM", "AREA") 
+  PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
+  STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
+  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
+  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
+  TABLESPACE "APSQT_INDX" ;

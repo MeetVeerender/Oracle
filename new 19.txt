@@ -1,0 +1,198 @@
+•	Goldengate data sync issue on Gcttst2 db.
+o	It was caused by server restart by storage hypervisor.
+•	A1wprd data shrink.
+•	Pletlvmdb01 revert from Azure to Enterprise.
+•	SOX dpar report follow-up.
+•	RFAP store proc to clear unioque sql id.
+•	N2idev and N2iprd connection data and Security scan request support.
+•	Azure Migration support.
+•	App KT scheduling.
+•	A1SR process limit error.
+•	DPAR’s.
+
+
+
+
+•	A1SR app release support.
+•	APSQT app deployment support.
+•	ADS agent connectivity issues on zrtph0v5 and Plbdjvmdb01 servers.
+•	Azure Migrations support.
+•	A1wprd data shrink support.
+•	RFAP store proc testing.
+
+
+
+
+•	Goldengate issue on Rptprd db.
+•	ADS agent connectivity issues resolved on all servers.
+•	A1wprd data shrink activity.
+•	ADS alert report on Ucmdev database on Dlucmvmdb02 server whitelisted.
+•	Cxpprd table data drop / truncate request follow-up.
+•	SOX dpar cleanup.
+•	Approval and Implement DPAR’s.
+•	Application KT scheduling.
+•	Iapprd2 data sync issues transferring files between Pliapvmdb41 and 51 servers.
+
+
+fabric
+app KT
+DBA Anamoly doc wiki update
+decomm
+rimini street doc update
+follow up on csqt deadlock - frequency of deadlock in the report
+future plans, how to test, approval for rollback
+Siebel App wiki page
+
+
+Host Server Name: Dlangvmdb01
+Processes to removed from OVO monitoring: ora_pmon_madd11 and lsnr_madd11
+
+Host Server Name: Plnfevmdb01
+Processes to removed from OVO monitoring: ora_pmon_nfep and lsnr_nfep
+
+
+SR_GSSOVER30_BLSTATUS
+
+alter table MISRPT.sr_gssover30_blstatus rename to MISRPT.sr_gssover30_blstatus_test;
+
+drop table misrpt.sr_gssover30_blstatus;
+
+
+
+Errors in file /usr/app/oracle/admin/rptprd/diag/rdbms/rptprd/rptprd/trace/rptprd_j003_1793416.trc:
+ORA-12012: error on auto execute of job "MISRPT"."DBMS_JOB$_661"
+ORA-12170: TNS:Connect timeout occurred
+ORA-06512: at "MISRPT.MSL", line 28
+
+
+kill -9 674397
+kill -9 685066
+kill -9 685069
+kill -9 685072
+kill -9 685078
+kill -9 685081
+kill -9 685084
+
+
+kill -9 674397
+kill -9 685066
+kill -9 685069
+kill -9 685072
+kill -9 685078
+kill -9 685081
+kill -9 685084
+
+
+
+https://avaya.atlassian.net/wiki/spaces/CSQT/pages/139034967/A1SR+Infra+Tickets+-+Oracle+Errors
+Log in with Atlassian account
+Log in to Jira, Confluence, and all other Atlassian Cloud products here. Not an Atlassian user? Sign up for free.
+ 
+
+select index_name, status, domidx_status, domidx_opstatus
+from dba_indexes
+where index_type = 'DOMAIN'
+and domidx_opstatus = 'FAILED';
+
+
+
+.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver - Using @ExceptionHandler com.avaya.csqt.quoting.controller.AccountController#errorResponse(CSQTException, HttpServletResponse)
+08:25:04.945 [[ACTIVE] ExecuteThread: '24' for queue: 'weblogic.kernel.Default (self-tuning)'] ERROR com.avaya.csqt.quoting.controller.AccountController - [khan768:saveAccountDetails:CSQT-Q-A011]
+com.avaya.csqt.util.CSQTException: org.apache.ibatis.exceptions.PersistenceException:
+### Error updating database.  Cause: java.sql.SQLException: ORA-29861: domain index is marked LOADING/FAILED/UNUSABLE
+ORA-06512: at "CSQT4.QUOTE_REFRESH_PKG", line 729
+ORA-06512: at line 1
+ 
+### The error may involve com.avaya.csqt.quoting.persistence.ECQuoteDAO.quoteRefresh-Inline
+### The error occurred while setting parameters
+### SQL: {    CALL QUOTE_REFRESH_PKG.REFRESH_QUOTE_GRID_PARENT(?,?)   }
+### Cause: java.sql.SQLException: ORA-29861: domain index is marked LOADING/FAILED/UNUSABLE
+ORA-06512: at "CSQT4.QUOTE_REFRESH_PKG", line 729
+ORA-06512: at line 1
+
+
+rdwprd - 1step: expand SIEBEL_IDX tablespace till 30% free, 2nd step: enter IAF and CR to extend /u02 by 1TB
+3rd step:
+1step: Analyze  gctprd, esmrepp, rptprd, rdwprd
+add a project sharepoint task, add gctprd, esmrepp, rptprd, rdwprd.
+smbprd - add space to data tablespace to bring it around 80% full
+
+
+
+Performance Tuning
+On-call rotation
+Oracle RAC
+Schema design
+Data Modeling
+AWS Cloud Concepts [EC2, EKS]
+Container databases
+Oracle Goldengate
+SDLC
+Information security, VMware
+SOX complaincy
+
+
+
+db checklist on step 
+
+
+Questions:
+
+1) Current version for A1SR and do we upgrade the application frequently?
+
+2) How are the deployments planned / executed?
+
+3) Are the Weekends deployment include App maintenance as well?
+
+4) What are common / frequently occuring issues in the A1SR app?
+
+5) 
+
+Batch Jobs
+Diagram related to app connecting to A1SR
+
+
+
+nook seating
+blacony - 6ft x 6 ft
+media room - 12 x 20
+
+remove cabinets in utlity
+Powder tile selections similar to bathroom 4
+
+
+
+family room:
+4 wide x 7 tall -bottom 3
+1 feet spacing between
+4 wide X 5 tall - top 2
+
+20 x 
+
+ceiling height
+21
+
+
+
+
+Thanks again for your consideration.
+
+I have Metlife Login and under my  account it gives me Eligibility ID as A5SVA9KS2. Is this the number you are looking for? Please let me know.
+
+Thanks,
+-Veerender.
+
+800-821-6400
+
+
+Hello India:
+$125
+1 shallow tray Biryani
+1 Shallow tray Appetizer
+1 dessert - 15 pieces rasmalai
+
+$12 Veg Biryani
+$14 Chicken Dum Biryani
+$10 Appetizer
+
+nohup scp_archive_redo_log.sh > scp_arhcive_redo_logs.out 2>&1 &

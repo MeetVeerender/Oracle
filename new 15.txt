@@ -1,0 +1,1844 @@
+create or replace PACKAGE BODY a1s_pkg_common
+AS
+    /***************************************************************************
+       NAME:       A1S_PKG_COMMON
+       PURPOSE:
+
+       REVISIONS:
+       Ver        Date        Author           Description
+       ---------  ----------  ---------------  ---------------------------------
+       1.0        14/08/2019  patel15          1. Created this package.
+    ***************************************************************************/
+
+    m_myapp      logsettings.application%TYPE := 'ADMIN';
+
+    base         INTEGER := 28;
+
+    -- OLD KEY: '0123456789ACEGHJKLMNPQRUVWXY'. WE WILL NOT USE IT AS IT CAN
+    -- GENERATE RUDE WORDS. Resolved by removing remaining vowels and replacing
+    -- it with characters that were ommited of other reasons. E.g. B looks
+    -- similar to 8.
+    value_list   VARCHAR2 (28) := '0123456789BCFGHJKLMNPQRTVWXY';
+
+    FUNCTION get_node_id (p_value_in   IN NUMBER,
+                          p_pad_len    IN NUMBER DEFAULT 0)
+        RETURN VARCHAR2
+    /***************************************************************************
+     * Purpose:Get_Node_ID takes in a random number, converts it to base 36,
+     * pads it to length p_Pad_Len and returns the number.
+     *
+     * This number is used in the generation of the A1S Solution ID and Quote ID
+     *
+     * Parameters:
+     *  IN
+     *     p_Value_In: The number to work on
+     *     p_Pad_Len: How long the returned number needs to be
+     *
+     **************************************************************************/
+    IS
+        l_myname           VARCHAR2 (100) := 'A1S_PKG_COMMON.Get_Node_ID : ';
+        value_to_convert   DECIMAL := p_value_in;
+        value_remainder    INTEGER := 0;
+        base_value         VARCHAR2 (50) := NULL;
+    BEGIN
+        WHILE value_to_convert != 0
+        LOOP
+            value_remainder := MOD (value_to_convert, base);
+            value_to_convert := (value_to_convert - value_remainder) / base;
+            base_value :=
+                base_value || SUBSTR (value_list, value_remainder + 1, 1);
+        END LOOP;
+
+        base_value :=
+            UTL_RAW.cast_to_varchar2 (
+                UTL_RAW.reverse (UTL_RAW.cast_to_raw (base_value)));
+
+        IF LENGTH (base_value) < p_pad_len
+        THEN
+            base_value := LPAD (base_value, p_pad_len, '0');
+        END IF;
+
+        pkg_logging.writetolog (
+            4,
+            m_myapp,
+               l_myname
+            || 'p_Value_In: '
+            || p_value_in
+            || ' p_Pad_Len: '
+            || p_pad_len
+            || ' - Get_Node_ID returns: '
+            || base_value);
+
+        RETURN base_value;
+    EXCEPTION
+        WHEN OTHERS
+        THEN
+            pkg_logging.writetolog (
+                1,
+                m_myapp,
+                   l_myname
+                || 'Error: '
+                || SQLCODE
+                || ' '
+                || SQLERRM
+                || ' '
+                || DBMS_UTILITY.format_error_backtrace);
+            RAISE;
+            RETURN base_value;
+    END get_node_id;
+
+    FUNCTION convert_node_id (p_value_in      IN VARCHAR2,
+                              p_start_index      NUMBER DEFAULT 3)
+        RETURN NUMBER
+    /***************************************************************************
+    ***************************************************************************/
+    IS
+        l_myname            VARCHAR2 (100) := 'A1S_PKG_COMMON.Get_Node_ID : ';
+        value_index         NUMBER := p_start_index + 1;
+        value_length        NUMBER := LENGTH (p_value_in);
+        value_list_length   NUMBER := LENGTH (value_list);
+
+        value_char          VARCHAR2 (1);
+        value_pos           NUMBER;
+        value_power_of      NUMBER;
+        value_power         NUMBER;
+        value_at_index      NUMBER;
+        base_value          NUMBER := 0;
+    BEGIN
+        WHILE value_index <= value_length
+        LOOP
+            value_char := SUBSTR (p_value_in, value_index, 1);
+            value_pos := INSTR (value_list, value_char, 1);
+            value_power_of := value_length - value_index;
+            value_power := POWER (value_list_length, value_power_of);
+            value_at_index := (value_pos - 1) * value_power;
+
+            base_value := base_value + value_at_index;
+            DBMS_OUTPUT.put_line (
+                   value_index
+                || ': CHAR:'
+                || value_char
+                || ', INDEX:'
+                || value_pos
+                || ', POWER OF:'
+                || value_power_of
+                || ', VALUE_POWER:'
+                || value_power
+                || ', VALUE_AT_INDEX:'
+                || value_at_index);
+
+            value_index := value_index + 1;
+        END LOOP;
+
+        pkg_logging.writetolog (
+            4,
+            m_myapp,
+               l_myname
+            || 'p_Value_In: '
+            || p_value_in
+            || ' - Convert_Node_ID returns: '
+            || base_value);
+
+        RETURN base_value;
+    EXCEPTION
+        WHEN OTHERS
+        THEN
+            pkg_logging.writetolog (
+                1,
+                m_myapp,
+                   l_myname
+                || 'Error: '
+                || SQLCODE
+                || ' '
+                || SQLERRM
+                || ' '
+                || DBMS_UTILITY.format_error_backtrace);
+            RAISE;
+            RETURN base_value;
+    END convert_node_id;
+
+    FUNCTION generate_a1s_solution_id
+        RETURN VARCHAR2
+    /***************************************************************************
+     * Purpose:Generate_A1S_Solution_ID returns an A1S Solution ID
+     *
+     * Return Value:
+     *   Type: VARCHAR2
+     *   Value: A unique 10 digit alphanumeric value
+     **************************************************************************/
+    IS
+        l_myname                  VARCHAR2 (100)
+            := 'a1s_pkg_quote_solution.Generate_A1S_Solution_ID : ';
+        l_solution_id             VARCHAR2 (10 CHAR);       -- E.g. XT123456AB
+        l_soln_prefix_label       VARCHAR2 (1 CHAR) := 'X'; -- All Solution IDs will begin with "X"
+        l_soln_prefix_env         VARCHAR2 (1 CHAR); -- This is a Database identifier: EMEA = U, NA = N, UAT = T, QA = Y, Customer Site = L
+        l_soln_unique_id          VARCHAR2 (8 CHAR); -- A unique alpha numeric ID
+        l_soln_unique_id_length   NUMBER := 8; -- The length of the unique alpha numeric ID
+    BEGIN
+        SELECT VALUE
+          INTO l_soln_prefix_env
+          FROM code
+         WHERE area = 11;
+
+        l_soln_unique_id :=
+            a1s_pkg_common.get_node_id (
+                p_value_in   => a1s_seq_solution_id.NEXTVAL,
+                p_pad_len    => l_soln_unique_id_length);
+        l_solution_id :=
+            l_soln_prefix_label || l_soln_prefix_env || l_soln_unique_id;
+
+        pkg_logging.writetolog (
+            4,
+            m_myapp,
+            l_myname || 'Generate_A1S_Solution_ID returns: ' || l_solution_id);
+        RETURN l_solution_id;
+    EXCEPTION
+        WHEN OTHERS
+        THEN
+            pkg_logging.writetolog (
+                1,
+                m_myapp,
+                   l_myname
+                || 'Error: '
+                || SQLCODE
+                || ' '
+                || SQLERRM
+                || ' '
+                || DBMS_UTILITY.format_error_backtrace);
+            RAISE;
+            RETURN l_solution_id;
+    END generate_a1s_solution_id;
+
+    FUNCTION get_quote_prefix (
+        p_db_instance_prefix   IN VARCHAR2,
+        p_sequence_type        IN NUMBER DEFAULT a1s_pkg_common.const_key_sequence_product)
+        RETURN VARCHAR2
+    /***************************************************************************
+    ***************************************************************************/
+    IS
+        l_quote_prefix   VARCHAR2 (1);
+    BEGIN
+        l_quote_prefix := p_db_instance_prefix;
+
+        CASE p_sequence_type
+            WHEN a1s_pkg_common.const_key_sequence_product
+            THEN
+                CASE p_db_instance_prefix
+                    WHEN 'U'
+                    THEN
+                        l_quote_prefix := 'E';
+                    WHEN 'N'
+                    THEN
+                        l_quote_prefix := 'A';
+                    WHEN 'L'
+                    THEN
+                        l_quote_prefix := 'C';
+                    WHEN 'Y'
+                    THEN
+                        l_quote_prefix := 'D';
+                    ELSE
+                        l_quote_prefix := p_db_instance_prefix;
+                END CASE;
+            WHEN a1s_pkg_common.const_key_sequence_service
+            THEN
+                IF p_db_instance_prefix = 'U'
+                THEN
+                    l_quote_prefix := 'R';
+                ELSE
+                    l_quote_prefix := 'S';
+                END IF;
+            WHEN a1s_pkg_common.const_key_sequence_aps
+            THEN
+                IF p_db_instance_prefix = 'U'
+                THEN
+                    l_quote_prefix := 'V';
+                ELSE
+                    l_quote_prefix := 'P';
+                END IF;
+            ELSE
+                l_quote_prefix := '*';
+        END CASE;
+
+        RETURN l_quote_prefix;
+    END get_quote_prefix;
+
+    FUNCTION generate_a1s_quote_id (
+        p_old_quote_id    IN VARCHAR2,
+        p_country_code    IN VARCHAR2,
+        p_is_fed          IN NUMBER,
+        p_sequence_type   IN NUMBER DEFAULT a1s_pkg_common.const_key_sequence_product)
+        RETURN VARCHAR2
+    IS
+        l_new_quote_id                VARCHAR2 (10);
+        l_quote_seq_offset   CONSTANT NUMBER := 3373232128;
+        l_plsql_block                 VARCHAR2 (255);
+        l_quote_prefix                VARCHAR2 (1);
+        l_quote_seq_string            VARCHAR2 (7);
+        l_quote_seq                   NUMBER;
+        l_is_fed                      NUMBER;
+        l_quote_id_exists             NUMBER;
+        l_force_prefix                VARCHAR2 (1);
+    BEGIN
+        l_quote_seq_string := '*******';
+        l_quote_prefix := '*';
+        l_is_fed := 0;
+        l_quote_id_exists := 0;
+        l_force_prefix := NULL;
+
+        IF p_country_code IS NULL
+        THEN
+            raise_application_error (
+                -20100,
+                'Error: generate_a1s_quote_id() - p_country_code not specified.');
+        END IF;
+
+        IF p_sequence_type NOT IN
+               (a1s_pkg_common.const_key_sequence_aps,
+                a1s_pkg_common.const_key_sequence_service,
+                a1s_pkg_common.const_key_sequence_product)
+        THEN
+            raise_application_error (
+                -20100,
+                'Error: generate_a1s_quote_id() - Cannot determine p_sequence_type value.');
+        END IF;
+
+        BEGIN
+            SELECT VALUE
+              INTO l_quote_prefix
+              FROM parameter p
+             WHERE p.owner = 'A1S'
+               AND p.name = 'DB_INSTANCE_PREFIX';
+
+            l_quote_prefix :=
+                get_quote_prefix (p_db_instance_prefix   => l_quote_prefix,
+                                  p_sequence_type        => p_sequence_type);
+        EXCEPTION
+            WHEN NO_DATA_FOUND
+            THEN
+                raise_application_error (
+                    -20100,
+                    'Error: generate_a1s_quote_id() - Cannot determine l_quote_prefix value.');
+        END;
+
+        IF p_old_quote_id IS NOT NULL
+        THEN
+            DBMS_OUTPUT.put_line ('Getting isFED flag from the Quote table.');
+
+            BEGIN
+                SELECT isfed
+                  INTO l_is_fed
+                  FROM quote q
+                 WHERE q.quoteid = p_old_quote_id;
+            EXCEPTION
+                WHEN NO_DATA_FOUND
+                THEN
+                    NULL;
+            END;
+        END IF;
+
+        DBMS_OUTPUT.put_line ('isFED : ' || l_is_fed);
+
+        BEGIN
+            IF a1s_pkg_common.const_key_generation_type > 0
+            THEN
+                CASE p_sequence_type
+                    WHEN a1s_pkg_common.const_key_sequence_aps
+                    -- p_force_prefix IN ('P', 'V')
+                    THEN
+                        l_plsql_block :=
+                               'SELECT PSN_COUNTRY_'
+                            || p_country_code
+                            || '_SEQ.nextval  from dual';
+                    WHEN a1s_pkg_common.const_key_sequence_service
+                    --  p_force_prefix IN ('S', 'R')
+                    THEN
+                        l_plsql_block :=
+                               'SELECT SVC_COUNTRY_'
+                            || p_country_code
+                            || '_SEQ.nextval  from dual';
+                    WHEN a1s_pkg_common.const_key_sequence_product
+                    THEN
+                        l_plsql_block :=
+                               'SELECT NPCOUNTRY_'
+                            || p_country_code
+                            || '_SEQ.nextval FROM dual';
+                    ELSE
+                        raise_application_error (
+                            -20100,
+                            'Error: generate_a1s_quote_id() - Cannot determine p_sequence_type value.');
+                END CASE;
+
+                EXECUTE IMMEDIATE l_plsql_block
+                    INTO l_quote_seq;
+
+                l_quote_seq_string :=
+                    LTRIM (TO_CHAR (l_quote_seq, '0000000'));
+            ELSE
+                /*
+                    CREATE SEQUENCE A1S_SEQ_QUOTE_ID
+                      START WITH 0
+                      MAXVALUE 9999999999999999999999999999
+                      MINVALUE 0
+                      NOCYCLE
+                      NOCACHE
+                      NOORDER
+                      NOKEEP
+                      NOSCALE
+                      GLOBAL;
+                 */
+                SELECT a1s_seq_quote_id.NEXTVAL INTO l_quote_seq FROM DUAL;
+
+                l_quote_seq := l_quote_seq + l_quote_seq_offset;
+
+                l_quote_seq_string :=
+                    a1s_pkg_common.get_node_id (l_quote_seq, 7);
+            END IF;
+        EXCEPTION
+            WHEN NO_DATA_FOUND
+            THEN
+                raise_application_error (
+                    -20100,
+                    'Error: generate_a1s_quote_id() - Cannot read sequence for quote number generation.');
+        END;
+
+        IF l_is_fed = 1
+        OR p_is_fed = 1
+        THEN
+            l_quote_prefix := 'F';
+        END IF;
+
+        l_new_quote_id :=
+            l_quote_prefix || p_country_code || l_quote_seq_string;
+
+        /*
+         * Check now if there is a quote with the same quoteid. Federal quotes
+         * are special. There is no F sequence so they could be repeated between
+         * different quote prefix letters
+         */
+        IF l_is_fed = 1
+        OR p_is_fed = 1
+        THEN
+            BEGIN
+                SELECT 1
+                  INTO l_quote_id_exists
+                  FROM quote q
+                 WHERE q.quoteid = l_new_quote_id;
+
+                DBMS_OUTPUT.put_line ('Quote Exists ');
+                l_new_quote_id :=
+                    a1s_pkg_common.generate_a1s_quote_id (
+                        p_old_quote_id    => p_old_quote_id,
+                        p_country_code    => p_country_code,
+                        p_is_fed          => p_is_fed,
+                        p_sequence_type   => p_sequence_type);
+            EXCEPTION
+                WHEN NO_DATA_FOUND
+                THEN
+                    NULL;
+            END;
+        END IF;
+
+        RETURN l_new_quote_id;
+    EXCEPTION
+        WHEN OTHERS
+        THEN
+            RAISE;
+    END generate_a1s_quote_id;
+
+    /***************************************************************************
+     * WARNING! WARNING! WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!
+     *
+     * DO NOT CHANGE THIS FUNCTION IN ANY WAY AS IT IS A CRITICAL PART OF A1S.
+     * ANY CHANGES TO THIS FUNCTION WILL RESULT IN CORRUPTION OF QUOTE DATA.
+     * CONSULT MAHESH PATEL OR ADRIAN FARRAGHER.
+     *
+     * WARNING! WARNING! WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!
+    ***************************************************************************/
+    FUNCTION get_line_item_id (p_line_item_in        IN VARCHAR2 DEFAULT NULL,
+                               p_pec_code_in         IN VARCHAR2 DEFAULT NULL,
+                               p_genericcond_in      IN VARCHAR2 DEFAULT NULL,
+                               p_vpec_code_in        IN VARCHAR2 DEFAULT NULL,
+                               p_sitenum_in          IN VARCHAR2 DEFAULT '1',
+                               p_sitetype_in         IN VARCHAR2 DEFAULT 'main',
+                               p_productcode_in      IN VARCHAR2 DEFAULT '35',
+                               p_functionalcode_in   IN VARCHAR2 DEFAULT '2',
+                               p_sub_in              IN NUMBER DEFAULT '0',
+                               p_app_id_in           IN NUMBER DEFAULT 1)
+        RETURN VARCHAR2
+    /***************************************************************************
+    Purpose: Generate Unique line item given the above parameters.
+
+    Parameters:
+        p_line_item_in        IN VARCHAR2 DEFAULT NULL,
+        p_pec_code_in         IN VARCHAR2 DEFAULT NULL,
+        p_genericcond_in      IN VARCHAR2 DEFAULT NULL,
+        p_vpec_code_in        IN VARCHAR2 DEFAULT NULL,
+        p_sitenum_in          IN VARCHAR2 DEFAULT '1',
+        p_sitetype_in         IN VARCHAR2 DEFAULT 'main',
+        p_productcode_in      IN VARCHAR2 DEFAULT '35',
+        p_functionalcode_in   IN VARCHAR2 DEFAULT '2',
+        p_sub_in              IN NUMBER DEFAULT '0',
+        p_app_id_in           IN NUMBER DEFAULT 1
+    ***************************************************************************/
+    IS
+        l_myname     VARCHAR2 (100) := 'A1S_PKG_COMMON.Get_Line_Item_ID : ';
+        base_value   VARCHAR2 (256) := NULL;
+    BEGIN
+        IF p_line_item_in IS NOT NULL
+        THEN
+            base_value := p_line_item_in;
+        ELSE
+            SELECT standard_hash (
+                          p_pec_code_in
+                       || '='
+                       || p_genericcond_in
+                       || '='
+                       || p_vpec_code_in
+                       || '='
+                       || p_sitenum_in
+                       || '='
+                       || p_sitetype_in
+                       || '='
+                       || p_productcode_in
+                       || '='
+                       || p_functionalcode_in
+                       || '='
+                       || p_sub_in
+                       || '='
+                       || p_app_id_in,
+                       'SHA256') AS line_item_id
+              INTO base_value
+              FROM DUAL;
+        END IF;
+
+        pkg_logging.writetolog (
+            4,
+            m_myapp,
+               l_myname
+            || 'p_line_item_in: '
+            || p_line_item_in
+            || 'p_pec_code_in: '
+            || p_pec_code_in
+            || ' p_genericcond_in: '
+            || p_genericcond_in
+            || ' p_vpec_code_in: '
+            || p_vpec_code_in
+            || ' p_sitenum_in: '
+            || p_sitenum_in
+            || ' p_sitetype_in: '
+            || p_sitetype_in
+            || ' p_productcode_in: '
+            || p_productcode_in
+            || ' p_functionalcode_in: '
+            || p_functionalcode_in
+            || ' p_sub_in: '
+            || p_sub_in
+            || ' p_app_id_in: '
+            || p_app_id_in
+            || ' - Get_Line_Item_ID returns: '
+            || base_value);
+
+        RETURN base_value;
+    EXCEPTION
+        WHEN OTHERS
+        THEN
+            pkg_logging.writetolog (
+                1,
+                m_myapp,
+                   l_myname
+                || 'Error: '
+                || SQLCODE
+                || ' '
+                || SQLERRM
+                || ' '
+                || DBMS_UTILITY.format_error_backtrace);
+            RAISE;
+    END get_line_item_id;
+
+    FUNCTION fn_isdelimited (p_string           VARCHAR2,
+                             p_delimited_char   VARCHAR2 DEFAULT ',')
+        RETURN NUMBER
+    IS
+        l_return   NUMBER := 0;
+    BEGIN
+        SELECT REGEXP_COUNT (p_string, p_delimited_char)
+          INTO l_return
+          FROM DUAL;
+
+        RETURN l_return;
+    END;
+
+    FUNCTION fn_gotwildcard (p_string VARCHAR2)
+        RETURN NUMBER
+    IS
+        l_wildcard_char   VARCHAR2 (1) := '%';
+        l_return          NUMBER := 0;
+    BEGIN
+        SELECT REGEXP_COUNT (REPLACE (p_string, '*', l_wildcard_char),
+                             l_wildcard_char)
+          INTO l_return
+          FROM DUAL;
+
+        RETURN l_return;
+    END;
+
+    FUNCTION fn_replacewildcard (p_string VARCHAR2)
+        RETURN VARCHAR2
+    IS
+        l_wildcard_char   VARCHAR2 (1) := '%';
+        l_return          VARCHAR2 (100 CHAR) := NULL;
+    BEGIN
+        l_return := REPLACE (p_string, '*', l_wildcard_char);
+
+        RETURN l_return;
+    END;
+
+    FUNCTION isequal (a IN NUMBER, b IN NUMBER)
+        RETURN BOOLEAN
+    IS
+    BEGIN
+        RETURN (a IS NOT NULL
+            AND b IS NOT NULL
+            AND a = b)
+            OR (a IS NULL
+            AND b IS NULL);
+    END;
+
+    FUNCTION isequal (a IN VARCHAR2, b IN VARCHAR2)
+        RETURN BOOLEAN
+    IS
+    BEGIN
+        RETURN (a IS NOT NULL
+            AND b IS NOT NULL
+            AND a = b)
+            OR (a IS NULL
+            AND b IS NULL);
+    END;
+
+    FUNCTION isequal (a IN DATE, b IN DATE)
+        RETURN BOOLEAN
+    IS
+    BEGIN
+        RETURN (a IS NOT NULL
+            AND b IS NOT NULL
+            AND a = b)
+            OR (a IS NULL
+            AND b IS NULL);
+    END;
+
+    FUNCTION isequal (a IN TIMESTAMP, b IN TIMESTAMP)
+        RETURN BOOLEAN
+    IS
+    BEGIN
+        RETURN (a IS NOT NULL
+            AND b IS NOT NULL
+            AND a = b)
+            OR (a IS NULL
+            AND b IS NULL);
+    END;
+
+    FUNCTION populate_key_value_pair_date_gtt (p_key_name    IN VARCHAR2,
+                                               p_key_value   IN DATE)
+        RETURN NUMBER
+    IS
+        l_return_value   NUMBER := 1;
+    BEGIN
+        INSERT INTO key_value_pair_date_gtt (key_name, key_value)
+             VALUES (p_key_name, p_key_value)
+          RETURNING key_id
+               INTO l_return_value;
+
+        RETURN l_return_value;
+    EXCEPTION
+        WHEN DUP_VAL_ON_INDEX
+        THEN
+            SELECT key_id
+              INTO l_return_value
+              FROM key_value_pair_date_gtt
+             WHERE key_name = p_key_name
+               AND key_value = p_key_value;
+
+            RETURN l_return_value;
+        WHEN OTHERS
+        THEN
+            RAISE;
+            RETURN -1;
+    END populate_key_value_pair_date_gtt;
+
+    FUNCTION populate_key_value_pair_number_gtt (p_key_name    IN VARCHAR2,
+                                                 p_key_value   IN NUMBER)
+        RETURN NUMBER
+    IS
+        l_return_value   NUMBER := 1;
+    BEGIN
+        INSERT INTO key_value_pair_number_gtt (key_name, key_value)
+             VALUES (p_key_name, p_key_value)
+          RETURNING key_id
+               INTO l_return_value;
+
+        RETURN l_return_value;
+    EXCEPTION
+        WHEN DUP_VAL_ON_INDEX
+        THEN
+            SELECT key_id
+              INTO l_return_value
+              FROM key_value_pair_number_gtt
+             WHERE key_name = p_key_name
+               AND key_value = p_key_value;
+
+            RETURN l_return_value;
+        WHEN OTHERS
+        THEN
+            RAISE;
+            RETURN -1;
+    END populate_key_value_pair_number_gtt;
+
+    FUNCTION populate_key_value_pair_string_gtt (p_key_name    IN VARCHAR2,
+                                                 p_key_value   IN VARCHAR2)
+        RETURN NUMBER
+    IS
+        l_return_value   NUMBER := 1;
+    BEGIN
+        INSERT INTO key_value_pair_string_gtt (key_name, key_value)
+             VALUES (p_key_name, p_key_value)
+          RETURNING key_id
+               INTO l_return_value;
+
+        RETURN l_return_value;
+    EXCEPTION
+        WHEN DUP_VAL_ON_INDEX
+        THEN
+            SELECT key_id
+              INTO l_return_value
+              FROM key_value_pair_string_gtt
+             WHERE key_name = p_key_name
+               AND key_value = p_key_value;
+
+            RETURN l_return_value;
+        WHEN OTHERS
+        THEN
+            RAISE;
+            RETURN -1;
+    END populate_key_value_pair_string_gtt;
+
+
+    PROCEDURE get_fx_rate (pi_from_currency        IN     VARCHAR2,
+                           pi_to_currency          IN     VARCHAR2,
+                           pi_effective_date       IN     DATE DEFAULT SYSDATE,
+                           po_currency_type           OUT VARCHAR2,
+                           po_currency_precision      OUT NUMBER,
+                           po_exchange_rate           OUT NUMBER,
+                           po_effective_date          OUT DATE,
+                           po_from_ratio              OUT NUMBER,
+                           po_to_ratio                OUT NUMBER,
+                           po_status                  OUT NUMBER)
+    IS
+    BEGIN
+        po_status := 0;
+
+        IF pi_to_currency = pi_from_currency
+        THEN
+            po_exchange_rate := 1;
+            po_effective_date := SYSDATE;
+            po_from_ratio := 1;
+            po_to_ratio := 1;
+            po_currency_precision := 2;
+        ELSE
+            SELECT cr.curr_type,
+                   cr.exchange_rate,
+                   cr.effective_date,
+                   cr.from_ratio,
+                   cr.to_ratio,
+                   c.currency_precision
+              INTO po_currency_type,
+                   po_exchange_rate,
+                   po_effective_date,
+                   po_from_ratio,
+                   po_to_ratio,
+                   po_currency_precision
+              FROM mv_currency c, mv_currency_rates cr, mv_currency_type ct
+             WHERE c.currency_type_id = ct.currency_type_id
+               AND c.currency_code = cr.to_curr
+               AND cr.curr_type = ct.currency_rate_type
+               AND cr.from_curr = pi_from_currency
+               AND cr.to_curr = pi_to_currency
+               AND cr.effective_date =
+                   (SELECT MAX (cr2.effective_date)
+                      FROM mv_currency_rates cr2
+                     WHERE cr2.curr_type = cr.curr_type
+                       AND cr2.from_curr = cr.from_curr
+                       AND cr2.to_curr = cr.to_curr
+                       AND cr2.effective_date <= pi_effective_date);
+        END IF;
+    EXCEPTION
+        WHEN NO_DATA_FOUND
+        THEN
+            po_status := 1;
+    END get_fx_rate;
+
+
+    PROCEDURE sp_getcurrencyrates (p_xmlrequest      IN     CLOB,
+                                   p_xmlresponse        OUT CLOB,
+                                   p_error_code         OUT NUMBER,
+                                   p_error_message      OUT VARCHAR2)
+    IS
+        myname   VARCHAR2 (100 CHAR)
+                     := 'a1s_pkg_common.sp_getcurrencyrates : ';
+    BEGIN
+        -- SAMPLE REQUEST/RESPONSE:
+        --    <PARAMETERS>
+        --        <REQUEST_ID>99</REQUEST_ID>
+        --        <CURRENCY FROM="USD" TO="GBP">
+        --            <RATE DATE="2017-01-14T12:01:51.217000000+09:00">
+        --                <FX_RATE></FX_RATE>
+        --                <EFFECTIVE_DATE></EFFECTIVE_DATE>
+        --                <PRECISION></PRECISION>
+        --                <FROM_RATIO></FROM_RATIO>
+        --                <TO_RATIO></TO_RATIO>
+        --            </RATE>
+        --            <RATE DATE="2020-04-27T14:16:00.000000000+01:00">
+        --                <FX_RATE>.82125</FX_RATE>
+        --                <EFFECTIVE_DATE>2019-09-01T00:00:00.000000000+01:00</EFFECTIVE_DATE>
+        --                <PRECISION>2</PRECISION>
+        --                <FROM_RATIO>1</FROM_RATIO>
+        --                <TO_RATIO>1</TO_RATIO>
+        --            </RATE>
+        --            <RATE DATE="2019-01-14T12:01:51.217000000+09:00">
+        --                <FX_RATE>.7832</FX_RATE>
+        --                <EFFECTIVE_DATE>2019-01-01T08:00:00.000000000+09:00</EFFECTIVE_DATE>
+        --                <PRECISION>2</PRECISION>
+        --                <FROM_RATIO>0</FROM_RATIO>
+        --                <TO_RATIO>0</TO_RATIO>
+        --            </RATE>
+        --        </CURRENCY>
+        --    </PARAMETERS>
+
+        pkg_logging.writetolog (3, m_myapp, myname || 'Start.');
+
+        WITH
+            xml_request
+            AS
+                (       SELECT NVL (request_id, 0)
+                                   AS request_id,
+                               fx_rate,
+                               CAST (
+                                   CAST (
+                                       TO_TIMESTAMP_TZ (
+                                           fx_date,
+                                           'YYYY-MM-DD"T"HH24:MI:SS.FF9tzh:tzm')
+                                           AS TIMESTAMP)
+                                       AT TIME ZONE DBTIMEZONE
+                                       AS DATE)
+                                   AS fx_date,
+                               CAST (
+                                   TO_TIMESTAMP_TZ (
+                                       fx_date,
+                                       'YYYY-MM-DD"T"HH24:MI:SS.FF9tzh:tzm')
+                                       AS TIMESTAMP)
+                                   AT TIME ZONE DBTIMEZONE
+                                   AS fx_lcl_timestamp,
+                               CAST (
+                                   TO_TIMESTAMP_TZ (
+                                       fx_date,
+                                       'YYYY-MM-DD"T"HH24:MI:SS.FF9tzh:tzm')
+                                       AS TIMESTAMP WITH TIME ZONE)
+                                   fx_rmt_timestamp,
+                               TO_CHAR (
+                                   TO_TIMESTAMP_TZ (
+                                       fx_date,
+                                       'YYYY-MM-DD"T"HH24:MI:SS.FF9tzh:tzm'),
+                                   'TZH:TZM')
+                                   AS fx_rmt_timezone,
+                               fx_from,
+                               fx_to
+                          FROM XMLTABLE (
+                                   '/PARAMETERS/CURRENCY/RATE'
+                                   PASSING xmltype (p_xmlrequest)
+                                   COLUMNS request_id    VARCHAR (100) PATH './ancestor::PARAMETERS/REQUEST_ID',
+                                           fx_rate       NUMBER PATH './FX_RATE',
+                                           fx_from       VARCHAR2 (3) PATH './ancestor::CURRENCY/@FROM',
+                                           fx_to         VARCHAR2 (3) PATH './ancestor::CURRENCY/@TO',
+                                           fx_date       VARCHAR2 (35) PATH '@DATE')
+                               xmlt),
+            fx_rates
+            AS
+                (SELECT xmlr.request_id,
+                        xmlr.fx_from,
+                        xmlr.fx_to,
+                        xmlr.fx_date,
+                        xmlr.fx_rmt_timestamp,
+                        xmlr.fx_rmt_timezone,
+                        cr.curr_type,
+                        cr.effective_date,
+                        cr.exchange_rate,
+                        c.currency_precision,
+                        cr.from_ratio,
+                        cr.to_ratio
+                   FROM xml_request xmlr
+                        JOIN mv_currency c ON 1 = 1
+                        JOIN mv_currency_type ct
+                            ON ct.currency_type_id = c.currency_type_id
+                        JOIN mv_currency_rates cr
+                            ON cr.from_curr = c.currency_code
+                           AND cr.from_curr = xmlr.fx_from
+                           AND cr.to_curr = xmlr.fx_to
+                           AND cr.effective_date =
+                               (SELECT MAX (cr2.effective_date)
+                                  FROM mv_currency_rates cr2
+                                 WHERE cr2.from_curr = cr.from_curr
+                                   AND cr2.to_curr = cr.to_curr
+                                   AND cr2.effective_date <= xmlr.fx_date)),
+            all_fx_rates
+            AS
+                (SELECT request_id,
+                        fx_from,
+                        fx_to,
+                        fx_date,
+                        fx_rmt_timestamp,
+                        fx_rmt_timezone,
+                        curr_type,
+                        effective_date,
+                        exchange_rate,
+                        currency_precision,
+                        from_ratio,
+                        to_ratio
+                   FROM fx_rates
+                 UNION
+                 SELECT request_id,
+                        fx_from,
+                        fx_to,
+                        fx_date,
+                        fx_rmt_timestamp,
+                        fx_rmt_timezone,
+                        NULL curr_type,
+                        NULL effective_date,
+                        NULL exchange_rate,
+                        NULL currency_precision,
+                        NULL from_ratio,
+                        NULL to_ratio
+                   FROM xml_request xmlr
+                  WHERE NOT EXISTS
+                            (SELECT 1
+                               FROM fx_rates fxr
+                              WHERE fxr.fx_from = xmlr.fx_from
+                                AND fxr.fx_to = xmlr.fx_to
+                                AND fxr.fx_date = xmlr.fx_date))
+          SELECT XMLELEMENT (
+                     "PARAMETERS",
+                     XMLELEMENT ("REQUEST_ID", request_id),
+                     XMLELEMENT (
+                         "CURRENCY",
+                         xmlattributes (fx_from AS "FROM", fx_to AS "TO"),
+                         XMLAGG (
+                             XMLELEMENT (
+                                 "RATE",
+                                 xmlattributes (
+                                     TO_CHAR (
+                                         fx_rmt_timestamp,
+                                         'YYYY-MM-DD"T"HH24:MI:SS.FF9tzh:tzm')
+                                         AS "DATE"),
+                                 XMLELEMENT ("FX_RATE", exchange_rate),
+                                 XMLELEMENT (
+                                     "EFFECTIVE_DATE",
+                                     CAST (
+                                         TO_TIMESTAMP_TZ (
+                                             effective_date,
+                                             'YYYY-MM-DD HH24:MI:SS.FF9tzh:tzm')
+                                             AS TIMESTAMP (9))
+                                         AT TIME ZONE fx_rmt_timezone),
+                                 XMLELEMENT ("PRECISION", currency_precision),
+                                 XMLELEMENT ("FROM_RATIO", from_ratio),
+                                 XMLELEMENT ("TO_RATIO", to_ratio))))).getclobval () AS "p_xmlresponse"
+            INTO p_xmlresponse
+            FROM all_fx_rates
+        GROUP BY request_id, fx_from, fx_to;
+
+        pkg_logging.writetolog (
+            4,
+            m_myapp,
+               myname
+            || 'p_xmlresponse : '
+            || DBMS_LOB.SUBSTR (p_xmlresponse, 1800, 1));
+
+        pkg_logging.writetolog (3, m_myapp, myname || 'End');
+
+        RETURN;
+    EXCEPTION
+        WHEN OTHERS
+        THEN
+            pkg_logging.writetolog (
+                1,
+                m_myapp,
+                   myname
+                || ',  Exception Raised: '
+                || SQLCODE
+                || ' '
+                || SQLERRM
+                || DBMS_UTILITY.format_error_backtrace);
+            p_error_code := 1;
+            p_error_message := SQLCODE || ' ' || SQLERRM;
+    END sp_getcurrencyrates;
+
+    FUNCTION get_universal_date_format (p_date IN DATE)
+        RETURN VARCHAR2
+    IS
+    BEGIN
+        IF p_date IS NOT NULL
+        THEN
+            RETURN    TO_CHAR (p_date, 'YYYY')
+                   || '/'
+                   || TO_CHAR (p_date, 'MM')
+                   || '/'
+                   || TO_CHAR (p_date, 'DD')
+                   || ' '
+                   || TO_CHAR (p_date, 'hh24')
+                   || ':'
+                   || TO_CHAR (p_date, 'mi')
+                   || ':'
+                   || TO_CHAR (p_date, 'ss');
+        ELSE
+            RETURN NULL;
+        END IF;
+    EXCEPTION
+        WHEN OTHERS
+        THEN
+            RETURN p_date;
+    END get_universal_date_format;
+
+    FUNCTION fn_save_xml_request (p_lognumber     IN NUMBER DEFAULT NULL,
+                                  p_xml           IN CLOB,
+                                  p_xml_type_id   IN NUMBER,
+                                  p_quote_id      IN VARCHAR2)
+        RETURN a1s_xml_requests.record_id%TYPE
+    IS
+        PRAGMA AUTONOMOUS_TRANSACTION;
+        l_myname            VARCHAR2 (100 CHAR)
+                                := 'A1S_PKG_COMMON.fn_Save_XML_Request';
+        l_xml_record_id     a1s_xml_requests.record_id%TYPE;
+        l_xml_response_id   a1s_xml_requests.response_id%TYPE;
+        rc                  NUMBER;
+    BEGIN
+        l_myname := l_myname || ' ' || TO_CHAR (p_lognumber) || ' : ';
+        pkg_logging.writetolog (3, m_myapp, l_myname || 'Start.');
+
+        INSERT INTO a1s_xml_requests (a1s_xml_request_type_id,
+                                      xml_data_in,
+                                      quoteid)
+             VALUES (p_xml_type_id, p_xml, p_quote_id)
+          RETURNING record_id, response_id
+               INTO l_xml_record_id, l_xml_response_id;
+
+
+        rc := SQL%ROWCOUNT;
+        pkg_logging.writetolog (
+            4,
+            m_myapp,
+               l_myname
+            || 'XML request saved.  Records affected: '
+            || rc
+            || ' Record_ID: '
+            || l_xml_record_id
+            || ' Response_ID: '
+            || l_xml_response_id);
+
+        pkg_logging.writetolog (3, m_myapp, l_myname || 'End');
+        COMMIT;
+
+        RETURN l_xml_record_id;
+    EXCEPTION
+        WHEN OTHERS
+        THEN
+            pkg_logging.writetolog (
+                1,
+                m_myapp,
+                   l_myname
+                || 'Exception Raised: '
+                || SQLCODE
+                || ' '
+                || SQLERRM
+                || DBMS_UTILITY.format_error_backtrace);
+            ROLLBACK;
+            RAISE;            -- Valid 'RAISE' as we are rethrowing exception.
+            RETURN NULL;
+    END fn_save_xml_request;
+
+    FUNCTION fn_save_xml_response (p_xml_record_id   IN VARCHAR2,
+                                   p_xml             IN CLOB)
+        RETURN a1s_xml_requests.response_id%TYPE
+    IS
+        PRAGMA AUTONOMOUS_TRANSACTION;
+        l_myname            VARCHAR2 (100 CHAR)
+                                := 'A1S_PKG_COMMON.fn_save_xml_response';
+        l_xml_response_id   a1s_xml_requests.response_id%TYPE;
+        rc                  NUMBER;
+    BEGIN
+        pkg_logging.writetolog (3, m_myapp, l_myname || 'Start.');
+
+
+           UPDATE a1s_xml_requests
+              SET xml_data_out = p_xml, response_date = SYSTIMESTAMP (4)
+            WHERE record_id = p_xml_record_id
+        RETURNING response_id
+             INTO l_xml_response_id;
+
+
+        rc := SQL%ROWCOUNT;
+        pkg_logging.writetolog (
+            4,
+            m_myapp,
+               l_myname
+            || 'XML response saved.  Records affected: '
+            || rc
+            || ' Record_ID: '
+            || p_xml_record_id
+            || ' Response_ID: '
+            || l_xml_response_id);
+
+        pkg_logging.writetolog (3, m_myapp, l_myname || 'End');
+        COMMIT;
+
+        RETURN l_xml_response_id;
+    EXCEPTION
+        WHEN OTHERS
+        THEN
+            pkg_logging.writetolog (
+                1,
+                m_myapp,
+                   l_myname
+                || 'Exception Raised: '
+                || SQLCODE
+                || ' '
+                || SQLERRM
+                || DBMS_UTILITY.format_error_backtrace);
+            ROLLBACK;
+            RAISE;            -- Valid 'RAISE' as we are rethrowing exception.
+            RETURN NULL;
+    END fn_save_xml_response;
+
+    FUNCTION fn_get_fy_start_date (p_date IN DATE)
+        RETURN DATE
+    IS
+        l_myname                          VARCHAR2 (100 CHAR)
+                                              := 'A1S_PKG_COMMON.fn_get_FY_Start_Date : ';
+        l_fy_start_date                   DATE;
+        l_const_fy_start_month   CONSTANT NUMBER := 10;              --October
+        l_date_year                       NUMBER;
+        l_date_month                      NUMBER;
+    BEGIN
+        l_fy_start_date := NULL;
+
+        IF p_date IS NOT NULL
+        THEN
+            WITH
+                tbl_dates_details
+                AS
+                    (SELECT EXTRACT (YEAR FROM p_date) l_date_year,
+                            EXTRACT (MONTH FROM p_date) l_date_month
+                       FROM DUAL)
+            SELECT CASE
+                       WHEN l_date_month >= l_const_fy_start_month
+                       THEN
+                           TRUNC (
+                               TO_DATE (
+                                      '01/'
+                                   || l_const_fy_start_month
+                                   || '/'
+                                   || l_date_year,
+                                   'DD/MM/YYYY'))
+                       ELSE
+                           TRUNC (
+                               TO_DATE (
+                                      '01/'
+                                   || l_const_fy_start_month
+                                   || '/'
+                                   || TO_CHAR (TO_NUMBER (l_date_year) - 1),
+                                   'DD/MM/YYYY'))
+                   END fy_start_date
+              INTO l_fy_start_date
+              FROM tbl_dates_details a;
+        END IF;
+
+        pkg_logging.writetolog (
+            3,
+            m_myapp,
+            l_myname || 'Return Value: ' || l_fy_start_date);
+
+        RETURN l_fy_start_date;
+    EXCEPTION
+        WHEN OTHERS
+        THEN
+            pkg_logging.writetolog (
+                1,
+                m_myapp,
+                   l_myname
+                || 'Exception Raised: '
+                || SQLCODE
+                || ' '
+                || SQLERRM
+                || ' '
+                || DBMS_UTILITY.format_error_backtrace);
+            RAISE;
+            RETURN NULL;
+    END fn_get_fy_start_date;
+
+    FUNCTION fn_pretty_xml (p_clob CLOB)
+        RETURN CLOB
+    IS
+        l_xmlclob   CLOB;
+    BEGIN
+        SELECT XMLSERIALIZE (CONTENT xmltype.createxml (p_clob) AS CLOB
+                             INDENT SIZE = 3)
+          INTO l_xmlclob
+          FROM DUAL;
+
+        RETURN l_xmlclob;
+    END fn_pretty_xml;
+
+    FUNCTION fn_pretty_json (p_clob CLOB)
+        RETURN CLOB
+    IS
+        l_xmlclob   CLOB;
+    BEGIN
+        -- TOAD generates syntax errors for this line, ignore them, the syntax is correct
+        SELECT json_serialize ((p_clob) RETURNING CLOB PRETTY)
+          INTO l_xmlclob
+          FROM DUAL;
+
+        RETURN l_xmlclob;
+    END fn_pretty_json;
+
+    FUNCTION adjust_expiry_date (p_date IN DATE)
+        RETURN DATE
+    IS
+        l_q_start_date        DATE := NULL;
+        l_q_end_date          DATE := NULL;
+        l_return_date         DATE := NULL;
+        l_q_end_date_offset   NUMBER
+            := const.quote_expiration_qtr_end_date_offset;
+        l_next_q_offset       NUMBER
+                                  := const.quote_expiration_next_qtr_offset;
+    BEGIN
+        SELECT TRUNC (p_date, 'Q') AS FIRST,
+               ADD_MONTHS (TRUNC (p_date, 'Q'), 3) - (1 / 60 / 60 / 24) AS LAST
+          INTO l_q_start_date, l_q_end_date
+          FROM DUAL;
+
+        IF p_date > l_q_end_date - l_q_end_date_offset
+        THEN
+            l_return_date := l_q_end_date + l_next_q_offset;
+        ELSE
+            l_return_date := p_date;
+        END IF;
+
+        RETURN l_return_date;
+    END adjust_expiry_date;
+
+
+    FUNCTION get_parameter_value (
+        p_parameter_owner   IN parameter.owner%TYPE,
+        p_parameter_name    IN parameter.name%TYPE)
+        RETURN parameter.VALUE%TYPE
+    IS
+        l_return_value   parameter.VALUE%TYPE;
+    BEGIN
+        SELECT p.VALUE
+          INTO l_return_value
+          FROM parameter p
+         WHERE p.owner = p_parameter_owner
+           AND p.name = p_parameter_name;
+
+        RETURN l_return_value;
+    EXCEPTION
+        WHEN OTHERS
+        THEN
+            RETURN l_return_value;
+    END get_parameter_value;
+
+    PROCEDURE get_milestone_billing_plan (
+        p_solution_id              IN     quote.solution_id%TYPE,
+        p_milestone_billing_plan      OUT milestone_billing_plans.plan_id%TYPE,
+        p_milestone_source            OUT a1s_solution.milestone_source%TYPE)
+    IS
+        l_myname                   VARCHAR2 (100 CHAR)
+                                       := 'A1S_PKG_COMMON.get_milestone_billing_plan : ';
+        l_ext_net_price_total      NUMBER := 0;
+        l_currency_code            currency.currency_code%TYPE;
+        l_milestone_billing_plan   milestone_billing_plans.plan_id%TYPE := 0;
+        isfed                      NUMBER := 0;
+        l_link_id                  ebiz_company.link_id%TYPE;
+        l_countryid                quote.countryid%TYPE;
+        l_is_direct                NUMBER := 0;
+        l_country_lookup           NUMBER := 0;
+        l_rule_lookup              NUMBER := 0;
+        l_cnt                      NUMBER := 0;
+    BEGIN
+        l_myname := l_myname || 'p_solution_id: ' || p_solution_id || ' ';
+        pkg_logging.writetolog (3, m_myapp, l_myname || 'Start.');
+
+        p_milestone_billing_plan := 0;
+        p_milestone_source := 'R';
+
+        IF pkg_l01_quote.solution_has_aps (p_solution_id => p_solution_id) = 0
+        THEN
+            p_milestone_billing_plan := 0;
+            p_milestone_source := 'R';
+            RETURN;
+        END IF;
+
+        SELECT COUNT (1)
+          INTO l_cnt
+          FROM a1s_solution_attribute
+         WHERE solution_id = p_solution_id
+           AND attribute_name = 'is_milestone_applicable'
+           AND attribute_value = 'N';
+
+        IF l_cnt = 1
+        THEN
+            p_milestone_billing_plan := 0;
+            p_milestone_source := 'R';
+            RETURN;
+        END IF;
+
+
+        BEGIN --Check if ONETIME APS amount is >0 then move forward else set plan id 0 and exit
+            SELECT NVL (ext_net_price, 0), currency_code
+              INTO l_ext_net_price_total, l_currency_code
+              FROM vw_aps_total_nonsubs
+             WHERE solution_id = p_solution_id;
+
+            IF l_ext_net_price_total = 0
+            THEN
+                p_milestone_billing_plan := 0;
+                p_milestone_source := 'R';
+                RETURN;
+            END IF;
+        EXCEPTION
+            WHEN NO_DATA_FOUND
+            THEN
+                p_milestone_billing_plan := 0;
+                p_milestone_source := 'R';
+                RETURN;
+        END;
+
+        BEGIN
+            SELECT DISTINCT
+                   DECODE (ebiz.company_type_id, 4, 1, 0),
+                   ebiz.link_id,
+                   q.countryid
+              INTO l_is_direct, l_link_id, l_countryid
+              FROM quote q
+                   JOIN distributor dist
+                       ON dist.distributorid = q.distributorid
+                   JOIN ebiz_company ebiz
+                       ON ebiz.company_id = dist.gpprdistributorid
+             WHERE q.solution_id = p_solution_id
+               AND q.isdeleted = 0;
+        EXCEPTION
+            WHEN TOO_MANY_ROWS
+            THEN
+                pkg_logging.writetolog (
+                    1,
+                    m_myapp,
+                       l_myname
+                    || ' Error: too many rows found to get LinkId and CountryId '
+                    || SQLCODE
+                    || ' '
+                    || SQLERRM
+                    || ' '
+                    || DBMS_UTILITY.format_error_backtrace);
+            WHEN OTHERS
+            THEN
+                NULL;
+        END;
+
+        -- For Direct quote, check MB Plan beased on SoldTO
+        IF l_is_direct = 1
+        THEN
+            BEGIN
+                SELECT plan_id, milestone_source
+                  INTO l_milestone_billing_plan, p_milestone_source
+                  FROM (  SELECT me.*
+                            FROM quote q
+                                 JOIN quote_sap_address qa
+                                     ON q.quoteid = qa.quote_id
+                                 JOIN milestone_exceptions me
+                                     ON me.record_value = qa.reference
+                           WHERE q.isdeleted = 0
+                             AND q.modelid = const.model_id__aps
+                             AND qa.address_type IN
+                                     (const.sap_address_type_id__sold_to_id,
+                                      const.sap_address_type_id__enterprise)
+                             AND TRUNC (me.valid_from) <= TRUNC (SYSDATE)
+                             AND TRUNC (me.valid_to) >= TRUNC (SYSDATE)
+                             AND me.record_type IN ('H', 'S')
+                             AND me.is_active = 1
+                             AND q.solution_id = p_solution_id
+                        ORDER BY 1)
+                 WHERE ROWNUM = 1;
+            EXCEPTION
+                WHEN OTHERS
+                THEN
+                    l_country_lookup := 1;
+            END;
+        ELSE
+            BEGIN
+                SELECT DISTINCT me.plan_id, me.milestone_source
+                  INTO l_milestone_billing_plan, p_milestone_source
+                  FROM milestone_exceptions me
+                 WHERE me.record_type = 'L'
+                   AND me.is_active = 1
+                   AND TRUNC (me.valid_from) <= TRUNC (SYSDATE)
+                   AND TRUNC (me.valid_to) >= TRUNC (SYSDATE)
+                   AND me.record_value = l_link_id;
+            EXCEPTION
+                WHEN OTHERS
+                THEN
+                    l_country_lookup := 1;
+            END;
+        END IF;
+
+        IF l_country_lookup = 1
+        THEN
+            BEGIN
+                SELECT me.plan_id, me.milestone_source
+                  INTO l_milestone_billing_plan, p_milestone_source
+                  FROM milestone_exceptions me
+                 WHERE me.record_type = 'C'
+                   AND me.is_active = 1
+                   AND TRUNC (me.valid_from) <= TRUNC (SYSDATE)
+                   AND TRUNC (me.valid_to) >= TRUNC (SYSDATE)
+                   AND me.record_value = l_countryid;
+            EXCEPTION
+                WHEN OTHERS
+                THEN
+                    l_rule_lookup := 1;
+            END;
+        END IF;
+
+        IF l_rule_lookup = 1
+        THEN
+            p_milestone_source := 'R';
+
+            BEGIN
+                SELECT COUNT (1)
+                  INTO isfed
+                  FROM fed_gov_quote_data f, quote q
+                 WHERE q.solution_id = p_solution_id
+                   AND f.quoteref = q.quoteid
+                   AND q.isdeleted = 0
+                   AND f.questionvariable = 'GS_Contract_Number'
+                   AND f.VALUE IS NOT NULL;
+            EXCEPTION
+                WHEN OTHERS
+                THEN
+                    isfed := 0;
+            END;
+
+            IF isfed != 0
+            THEN
+                l_milestone_billing_plan := 2;
+            ELSE
+                BEGIN
+                    SELECT plan_id
+                      INTO l_milestone_billing_plan
+                      FROM (  SELECT plan_id
+                                FROM milestone_currency_map
+                               WHERE currency_code = l_currency_code
+                                 AND TRUNC (valid_from) <= TRUNC (SYSDATE)
+                                 AND TRUNC (valid_to) >= TRUNC (SYSDATE)
+                                 AND l_ext_net_price_total BETWEEN range_start
+                                                               AND range_end
+                                 AND is_active = 'Y'
+                            ORDER BY range_start DESC)
+                     WHERE ROWNUM < 2;
+                EXCEPTION
+                    WHEN NO_DATA_FOUND
+                    THEN
+                        pkg_logging.writetolog (
+                            1,
+                            m_myapp,
+                               l_myname
+                            || ' Did not find currency into  MILESTONE_CURRENCY_MAP for '
+                            || l_currency_code
+                            || ' l_ext_net_price_total: '
+                            || l_ext_net_price_total);
+
+                        /* TO DO : Write Currency conversion to USD */
+
+                        SELECT plan_id
+                          INTO l_milestone_billing_plan
+                          FROM (  SELECT plan_id
+                                    FROM milestone_currency_map
+                                   WHERE currency_code = l_currency_code
+                                     AND TRUNC (valid_from) <= TRUNC (SYSDATE)
+                                     AND TRUNC (valid_to) >= TRUNC (SYSDATE)
+                                     AND l_ext_net_price_total BETWEEN range_start
+                                                                   AND range_end
+                                     AND is_active = 'Y'
+                                ORDER BY range_start DESC)
+                         WHERE ROWNUM < 2;
+                END;
+            END IF;
+        END IF;
+
+        p_milestone_billing_plan := l_milestone_billing_plan;
+
+        pkg_logging.writetolog (
+            4,
+            m_myapp,
+               l_myname
+            || ' milestone_billing_plan: '
+            || l_milestone_billing_plan);
+
+        pkg_logging.writetolog (3, m_myapp, l_myname || 'End.');
+    EXCEPTION
+        WHEN OTHERS
+        THEN
+            pkg_logging.writetolog (
+                1,
+                m_myapp,
+                   l_myname
+                || ' Error: '
+                || SQLCODE
+                || ' '
+                || SQLERRM
+                || ' '
+                || DBMS_UTILITY.format_error_backtrace);
+    END get_milestone_billing_plan;
+
+    PROCEDURE get_service_value_chain_map_data (p_xmlresponse OUT CLOB)
+    IS
+        myname   VARCHAR2 (100 CHAR)
+                     := 'A1S_PKG_COMMON.get_service_value_chain_map_data : ';
+    BEGIN
+        SELECT XMLAGG (
+                   XMLELEMENT (
+                       "PARAMETERS",
+                       (SELECT XMLAGG (
+                                   XMLELEMENT (
+                                       "DATA",
+                                       XMLELEMENT ("SERVICE_TYPE_FROM",
+                                                   service_type_from),
+                                       XMLELEMENT ("SERVICE_TYPE_TO",
+                                                   service_type_to),
+                                       XMLELEMENT ("EFFECTIVE_FROM",
+                                                   effective_from),
+                                       XMLELEMENT ("EFFECTIVE_TO",
+                                                   effective_to),
+                                       XMLELEMENT ("ISACTIVE", isactive)))
+                          FROM service_value_chain_map))).getclobval () AS "p_xmlresponse"
+          INTO p_xmlresponse
+          FROM DUAL;
+    EXCEPTION
+        WHEN OTHERS
+        THEN
+            pkg_logging.writetolog (
+                1,
+                m_myapp,
+                   myname
+                || ',  Exception Raised: '
+                || SQLCODE
+                || ' '
+                || SQLERRM
+                || DBMS_UTILITY.format_error_backtrace);
+    END get_service_value_chain_map_data;
+
+    PROCEDURE queuing_web_servicecalls (
+        p_quoteid            IN     quote.quoteid%TYPE,
+        p_web_service_name   IN     VARCHAR2,
+        p_error_code            OUT NUMBER,
+        p_error_message         OUT VARCHAR2)
+    AS
+        l_myname                VARCHAR2 (1000 CHAR)
+                                    := 'a1s_pkg_common.queuing_web_servicecalls';
+        l_mylognumber           NUMBER;
+        l_cnt                   NUMBER;
+        l_data_source           VARCHAR2 (5 CHAR);
+        l_sapsource             VARCHAR2 (50 CHAR);
+        l_parent_quoteid        quote.quoteid%TYPE;
+        l_solution_id           quote.solution_id%TYPE;
+        l_quote_origin_id       quote.quote_origin_id%TYPE;
+        l_otn                   quote.opportunityid%TYPE;
+        l_config_design_id      quote.config_design_id%TYPE;
+        l_mea_code              quote.mea_code%TYPE;
+        l_eprojectcode          quote.eproject_code%TYPE;
+        l_statusid              quote.statusid%TYPE;
+        l_sfdc_id               ec_tbl_sfdc_details.sfdc_id%TYPE;
+        l_sapquoteordernumber   svc_b2b_sap_references.sap_order_ref%TYPE;
+        l_wbs_elementid         svc_b2b_sap_references.sap_wbs_element%TYPE;
+        l_json_request          JSON;
+        l_request               ec_http_log.full_request%TYPE;
+    BEGIN
+        pkg_logging.getlognumber (l_mylognumber);
+        l_myname :=
+               l_myname
+            || ' ('
+            || TO_CHAR (l_mylognumber)
+            || '): '
+            || 'p_web_service_name: '
+            || p_web_service_name
+            || ' p_quoteid: '
+            || p_quoteid;
+        pkg_logging.writetolog (3, 'DB', l_myname || 'Start.');
+
+        p_error_code := 0;
+        p_error_message := 'Success';
+
+        IF p_web_service_name = 'PSA_CREATE_A1S_ORDER'
+        THEN
+            SELECT qf.parent_quote_id,
+                   q.solution_id,
+                   q.quote_origin_id,
+                   q.opportunityid,
+                   q.config_design_id,
+                   sfdc.sfdc_id, ---need to confirm with Yogesh if this is required field or we can send it as NULL
+                   getdb,
+                   q.eproject_code,
+                   q.mea_code,
+                   NVL (bsr.sap_order_ref, bsr.sap_quote_ref),
+                   bsr.sap_wbs_element,
+                   CASE q.countryid
+                       WHEN 207 THEN 'SAP IBOX US'
+                       ELSE 'SAP IBOX'
+                   END AS sap_source,
+                   q.statusid
+              INTO l_parent_quoteid,
+                   l_solution_id,
+                   l_quote_origin_id,
+                   l_otn,
+                   l_config_design_id,
+                   l_sfdc_id,
+                   l_data_source,
+                   l_eprojectcode,
+                   l_mea_code,
+                   l_sapquoteordernumber,
+                   l_wbs_elementid,
+                   l_sapsource,
+                   l_statusid
+              FROM quote q
+                   JOIN a1s_vw_quote_family qf
+                       ON q.quoteid = qf.associatedquoteid
+                   LEFT JOIN ec_tbl_sfdc_details sfdc
+                       ON q.quoteid = sfdc.quoteid
+                   LEFT JOIN svc_b2b_sap_references bsr
+                       ON q.quoteid = bsr.quoteid
+             WHERE q.quoteid = p_quoteid
+               AND ROWNUM = 1;
+
+            /* MAHESH: 24/2/2023 DIFFERENCE FROM Y.
+                          FROM quote  q
+                               JOIN a1s_vw_quote_family3 qf
+                                   ON q.quoteid = qf.quoteid AND qf.RELATION_TYPE = 'P'
+                               LEFT JOIN ec_tbl_sfdc_details sfdc ON q.quoteid = sfdc.quoteid
+                               LEFT JOIN svc_b2b_sap_references bsr
+                                   ON q.quoteid = bsr.quoteid
+                         WHERE q.quoteid = p_quoteid AND ROWNUM = 1;
+            */
+
+            pkg_logging.writetolog (
+                4,
+                'DB',
+                   l_myname
+                || 'Solution ID: '
+                || l_solution_id
+                || ' |  Parent Quote ID: '
+                || l_parent_quoteid
+                || ' |  Quote Origin ID: '
+                || l_quote_origin_id
+                || ' |  Opportunity ID: '
+                || l_otn
+                || ' |  Config Design ID: '
+                || l_config_design_id
+                || ' |  SFDC ID: '
+                || l_sfdc_id
+                || ' |  dataSource: '
+                || l_data_source
+                || ' |  Eprojectcode: '
+                || l_eprojectcode
+                || ' |  Mea Code: '
+                || l_mea_code
+                || ' |  Sap Quote Order Number: '
+                || l_sapquoteordernumber
+                || ' |  Wbs Elementid: '
+                || l_wbs_elementid
+                || ' |  Sapsource: '
+                || l_sapsource
+                || ' |  Statusid: '
+                || l_statusid);
+
+            SELECT COUNT (1)
+              INTO l_cnt
+              FROM quote q1
+             WHERE q1.isdeleted = 0
+               AND q1.modelid = const.model_id__aco
+               AND q1.statusid = const.quote_status__ordered
+               AND q1.solution_id = l_solution_id
+               AND NOT EXISTS
+                       (SELECT 1
+                          FROM quote q2
+                         WHERE q2.isdeleted = 0
+                           AND q2.modelid != const.model_id__aco
+                           AND q1.solution_id = q2.solution_id);
+
+            IF l_cnt = 1
+            THEN
+                --Start building up l_json_request
+                pkg_logging.writetolog (
+                    4,
+                    'DB',
+                    l_myname || ': Initiate Json Request Payload');
+                l_json_request := json ();
+                json_ext.put (l_json_request, 'solutionId', l_solution_id);
+                json_ext.put (l_json_request, 'QRN', p_quoteid);
+                json_ext.put (l_json_request, 'source', 'A1SDB');
+                json_ext.put (l_json_request, 'SAPSource', l_sapsource);
+                json_ext.put (l_json_request,
+                              'OrderNumber',
+                              l_sapquoteordernumber);
+                json_ext.put (l_json_request, 'ProjectCode', l_eprojectcode);
+                json_ext.put (l_json_request, 'A1S_MEAID', l_mea_code);
+                json_ext.put (l_json_request,
+                              'wbsElementId',
+                              l_wbs_elementid);
+                json_ext.put (l_json_request, 'ParentQRN', l_parent_quoteid);
+                json_ext.put (l_json_request,
+                              'QuoteOriginId',
+                              l_quote_origin_id);
+                json_ext.put (l_json_request,
+                              'configDesignId',
+                              l_config_design_id);
+                json_ext.put (l_json_request, 'dataSource', l_data_source);
+                json_ext.put (l_json_request,
+                              'isAllQuotesinSolutionOrdered',
+                              'Y');
+                json_ext.put (l_json_request, 'OTN', l_otn);
+                json_ext.put (l_json_request, 'OTNID', l_sfdc_id);
+                json_ext.put (l_json_request, 'isPipeLineProject', 'N');
+
+                DBMS_LOB.createtemporary (l_request, TRUE);
+                l_json_request.TO_CLOB (buf => l_request);
+                l_request := l_json_request.TO_CHAR;
+
+                pkg_logging.writetolog (
+                    4,
+                    'DB',
+                    l_myname || ': l_request is : ' || l_request);
+            --pkg_services.enqueue_gad_sdd_message(p_quoteid => p_quoteid, p_request => l_request);
+            END IF;
+        END IF;
+
+        pkg_logging.writetolog (3, 'DB', l_myname || 'End.');
+    EXCEPTION
+        WHEN OTHERS
+        THEN
+            pkg_logging.writetolog (
+                1,
+                'DB',
+                   l_myname
+                || 'Exception Raised: '
+                || SQLCODE
+                || ' '
+                || SQLERRM
+                || DBMS_UTILITY.format_error_backtrace);
+            p_error_code := SQLCODE;
+            p_error_message := SQLCODE || ' ' || SUBSTR (SQLERRM, 1, 2000);
+    END queuing_web_servicecalls;
+
+    PROCEDURE getuserpermissiondata (
+        p_permissionid   IN     tbl_user_permissions.permissionid%TYPE,
+        p_nailid         IN     theuser.nailid%TYPE,
+        p_response          OUT CLOB)
+    IS
+        l_myname   VARCHAR2 (100 CHAR)
+                       := 'a1s_pkg_common.getUserPermissionData';
+        l_cnt      NUMBER;
+    BEGIN
+        SELECT COUNT (1)
+          INTO l_cnt
+          FROM theuser
+         WHERE nailid = p_nailid
+           AND user_status = 1;
+
+        IF l_cnt = 0
+        THEN
+            RETURN;
+        END IF;
+
+        IF p_permissionid IS NULL
+        THEN
+            SELECT XMLELEMENT (
+                       "PERMISSION_DATA",
+                       XMLAGG (
+                           XMLELEMENT (
+                               "USER_PERMISSIONS",
+                               XMLELEMENT ("PERMISSIONID", UP.permissionid),
+                               XMLELEMENT ("DESCRIPTION", UP.description)))).getclobval ()
+              INTO p_response
+              FROM theuser tu
+                   JOIN tbl_user_permissions_map upm
+                       ON tu.userid = upm.userid
+                   JOIN tbl_user_permissions UP
+                       ON upm.permissionid = UP.permissionid
+             WHERE tu.nailid = p_nailid;
+        ELSE
+            SELECT XMLELEMENT (
+                       "PERMISSION_DATA",
+                       XMLAGG (
+                           XMLELEMENT (
+                               "USER_PERMISSIONS",
+                               XMLELEMENT ("PERMISSIONID", UP.permissionid),
+                               XMLELEMENT ("DESCRIPTION", UP.description)))).getclobval ()
+              INTO p_response
+              FROM theuser tu
+                   JOIN tbl_user_permissions_map upm
+                       ON tu.userid = upm.userid
+                   JOIN tbl_user_permissions UP
+                       ON upm.permissionid = UP.permissionid
+             WHERE tu.nailid = p_nailid
+               AND upm.permissionid = p_permissionid;
+        END IF;
+    EXCEPTION
+        WHEN OTHERS
+        THEN
+            pkg_logging.writetolog (
+                1,
+                m_myapp,
+                   l_myname
+                || 'Error Caught! | p_permissionid: '
+                || p_permissionid
+                || ' | p_nailid: '
+                || p_nailid
+                || ' | l_cnt:'
+                || l_cnt
+                || SQLCODE
+                || ' | '
+                || SQLERRM
+                || ' | '
+                || DBMS_UTILITY.format_error_backtrace);
+    END getuserpermissiondata;
+
+
+    FUNCTION split (list_p VARCHAR, delimiter_p VARCHAR:= ',')
+        RETURN split_table
+        PIPELINED
+    AS
+        idx      PLS_INTEGER;
+        list_t   VARCHAR (32767) := list_p;
+    BEGIN
+        LOOP
+            list_t := TRIM (list_t);
+            idx := INSTR (list_t, delimiter_p);
+
+            IF idx > 0
+            THEN
+                PIPE ROW (SUBSTR (list_t, 1, idx - 1));
+                list_t := TRIM (SUBSTR (list_t, idx + LENGTH (delimiter_p)));
+            ELSE
+                PIPE ROW (list_t);
+                EXIT;
+            END IF;
+        END LOOP;
+
+        RETURN;
+    END;
+END a1s_pkg_common;

@@ -1,0 +1,18 @@
+./emctl upload agent
+
+./emctl clearstate agent
+
+/usr/app/oracle/product/em/oms4/GoldImage_final4/agent_13.5.0.0.0/bin> ./emctl status agent
+
+
+Scripts:
+
+Plorovmap04(OMS) /u01/scripts/
+
+username: db_admin
+password: update88
+
+
+ODBA Team Initiative.
+
+To reduce the footprint and retire un-used systems.

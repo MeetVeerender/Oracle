@@ -1,0 +1,171 @@
+Oracle RAC Notes:
+
+Cardinality is number of ASM instances in a cluster.
+
+Private network alias Interconnect is used to communicate between cluster nodes.
+
+Cache Fusion is a diskless feature that provides block data to requesting memory cache instance from holding node memory cache.
+
+Global Processes helps maintains cache coherency in case of node failures.
+
+RAC Tools:
+Cluster verification utility
+OEM
+SVC
+
+Performance Tuning:
+
+Latch
+
+Public Network: Each node has a network connection called Public network. This network provides the connection applications that use the database or clustered applications.
+Private network: Also called as Interconnect provides the connection between nodes of a cluster. Shared storage must be accessible from each node.
+
+
+
+
+
+
+
+
+
+
+Oracle Database Migration to Amazon AWS:
+
+https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/migrate-an-on-premises-oracle-database-to-amazon-rds-for-oracle.html
+
+AWS Database Migration Service (AWS DMS)
+
+Upload the backup database to an Amazon Simple Storage Service (Amazon S3) bucket.
+
+
+application’s recovery time objective (RTO) and recovery point objective (RPO)
+
+
+
+Migrate an on-premises Oracle database to Oracle on Amazon EC2
+
+https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/migrate-an-on-premises-oracle-database-to-oracle-on-amazon-ec2.html
+
+
+
+
+
+
+
+PostgreSQL Notes:
+
+[Reference 1: https://www.youtube.com/watch?v=qw--VYLpxG4]
+
+[Reference #2: https://www.linkedin.com/learning/postgresql-essential-training-22611610/download-and-install-postgresql?autoSkip=true&resume=false&u=85185346]
+
+[Main Reference: postgresql.org]
+
+Installation links:
+Docker
+pgadmin
+
+or direclty download from postgresql.org
+
+
+Docker:
+docker run --name postgresql-server -e POSTGRES_PASSWORDD=Adam123456 -p 5432:5432 -d postgres:15.2
+
+Default port: 5432
+
+
+
+PgAdmin is the terminal line / command prompt for PostgreSQL
+
+-- For setting bash profile / environment to run commands
+cd ~
+vi .zshrc
+
+export PATH=$PATH://Applications/Postgres.app/Contents/Versions/11/bin
+
+source .zshrc
+
+psql
+
+--psql is the command to 
+
+sql -p5432 -d "postgres"
+vi .zshrc
+
+--- to re-read the file after setting parameters
+source .zshrc
+
+For Windows:
+After installing PostgreSQL, pull pgdmin4 [grahical interface] and SQL Shell (psql)
+
+to start a database, double click SQL Shell (psql)
+Server [Local host]: 
+Database {postgres}: 
+POrt [5432}:
+Username [postgres]:
+psql (11.2): <Entered during postgres installation>
+postgres:
+<Now you are connected to postgres database>
+
+postgres=# SELECT version();
+postgres=# SELECT now();
+
+Create database:
+psql
+----list the databases that are active
+\l
+
+CREATE DATABASE test;
+
+\l
+
+Connect to database:
+~ psql --help
+
+usage: 
+psql  -h localhost -p 5432 -U amigoscode test
+
+---to quit
+\q
+
+To connect to another database:
+\l
+\c test
+\c amigoccode
+\c postgres
+
+Drop database:
+DROP DATABASE test;
+
+CREATE TABLE colors (ColorID int, ColorName char(20) );
+
+INSERT INTO colors VALUES (1,'red'), (2,'green'), (3,'red');
+
+select * from colors;
+
+
+create table berry ( BerryID int, BerryName char(20), color char(20));
+
+insert into berry values (1,'blueberry','blue'), (2,'blackberry','black'), (3,'Raspberry','red');
+
+
+
+Oracle Partition
+Oracle Data Guard
+Oracle Goldengate
+Oracle RAC
+Oracle RMAN
+Oracle Performance Tuning
+
+
+
+
+Oracle Data Guard
+
+https://docs.oracle.com/en/database/oracle/oracle-database/23/sbydb/introduction-to-oracle-data-guard-concepts.html#GUID-AB9DF863-2C7E-4767-81F2-56AD0FA30B49
+
+
+3 types of Standy databases:
+1) Physical Standby
+2) Logical Standby
+3) Snapshot Standby
+

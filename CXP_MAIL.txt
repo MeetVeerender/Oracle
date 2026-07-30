@@ -1,0 +1,147 @@
+IS
+  
+/**********************************************************************
+
+   NAME:       SP_SYNC_CXP_MAIL_LDAP 
+   PURPOSE:    The procedure will locate users where their user_logon is 
+   the same but their email differs. Once identified we then update the email.
+ 
+   REVISIONS: 
+   Ver        Date        Author           Description 
+   ---------  ----------  ---------------  ----------------------------
+-------- 
+   1.0        3/09/2006   Frank Lupo       1. Created this procedure. 
+ 
+   NOTES: 
+ 
+*********************************************************************/ 
+   err_code         NUMBER;
+   err_msg          VARCHAR2 (200);
+   v_rows_updated   VARCHAR2 (200);
+   v_mail varchar2(100);
+
+   CURSOR cxp_email_update
+   IS
+      SELECT MAIL, USER_ID
+        FROM CXP_USER INNER JOIN OPS_CXP_USER_LDAP2
+                ON (CXP_USER.USER_LOGON = OPS_CXP_USER_LDAP2.USERID)
+       WHERE     (lower(CXP_USER.EMAIL_ADDRESS) <> lower(OPS_CXP_USER_LDAP2.MAIL))
+             AND (CXP_USER.USER_STATUS = 'A')
+             AND (OPS_CXP_USER_LDAP2.DISABLEDSTATE = '0');
+BEGIN
+   INSERT INTO UCM_FIXES_LOG_TABLE (CREATED,
+                                    RUN_START,
+                                    NAME_OF_THE_STORED_PROCEDURE,
+                                    DESCRIPTION,
+                                    STATUS,
+                                    RUN_END)
+       VALUES (SYSDATE,
+               SYSDATE,
+               'SP_SYNC_CXP_MAIL_LDAP',
+               'SP_SYNC_CXP_MAIL_LDAP' || v_rows_updated,
+               'STARTED',
+               '');
+
+
+   COMMIT;
+
+   v_rows_updated := 0;
+
+   FOR tm_cxp_email_update IN cxp_email_update
+   LOOP
+   v_mail := tm_cxp_email_update.USER_ID;
+SP_ERROR_TRAP ('LUPO',tm_cxp_email_update.USER_ID);
+      UPDATE CXP_USER
+         SET EMAIL_ADDRESS = lower(tm_cxp_email_update.MAIL),
+             STATUS_CHECK = 'T',
+             MODIFIED_BY = 'CXP_MAIL_FIX',
+             MODIFIED_ON = SYSDATE
+       WHERE CXP_USER.USER_ID = tm_cxp_email_update.USER_ID;
+      
+      
+      COMMIT;
+      v_mail := '';
+      v_rows_updated := v_rows_updated + v_rows_updated;
+   END LOOP;
+
+SP_ERROR_TRAP ('LUPO','1');
+   INSERT INTO UCM_FIXES_LOG_TABLE (CREATED,
+                                    RUN_START,
+                                    NAME_OF_THE_STORED_PROCEDURE,
+                                    DESCRIPTION,
+                                    STATUS,
+                                    RUN_END)
+       VALUES (SYSDATE,
+               SYSDATE,
+               'SP_SYNC_CXP_MAIL_LDAP',
+               'SP_SYNC_CXP_MAIL_LDAP' || v_rows_updated,
+               'ENEDED',
+               '');
+
+   COMMIT;
+   
+   delete OPS_CXP_USER_email_case_issue;
+   
+   commit;
+   
+   insert into OPS_CXP_USER_email_case_issue  
+   SELECT SYSDATE AS created,
+          userid,
+          DN,
+          a.EMAIL_ADDRESS,
+          hascxp,
+          disabledstate,
+          b.CUSTNBR,
+          last_login,
+          'EMAIL-UPPER OR MIXED CASE issue ' comments,
+          a.ROWID as id,
+          CREATED_IN_LDAP_ON,
+          adminroleconstraint
+     FROM cxp_user a, OPS_CXP_USER_LDAP2 b
+    WHERE a.user_logon = b.userid AND 
+    lower(a.email_address) <> LOWER (a.email_address) 
+          --AND a.USER_STATUS = 'A'
+          ;
+
+COMMIT;
+
+
+-- now we lower all emails
+UPDATE CXP_USER
+   SET EMAIL_ADDRESS = LOWER (EMAIL_ADDRESS),
+       STATUS_CHECK = 'T',
+       MODIFIED_BY = 'CXP_MAIL_FIX',
+       MODIFIED_ON = SYSDATE
+ WHERE USER_ID IN (SELECT user_id
+                     FROM cxp_user
+                    WHERE
+                    --  USER_STATUS = 'A'
+                     --and 
+                     email_address <> lower (email_address));
+
+
+commit;
+SP_ERROR_TRAP ('LUPO','2');
+EXCEPTION
+   WHEN OTHERS
+   THEN
+      err_code := SQLCODE;
+      err_msg := SUBSTR (SQLERRM, 1, 200);
+
+
+      INSERT INTO UCM_FIXES_LOG_TABLE (CREATED,
+                                       RUN_START,
+                                       NAME_OF_THE_STORED_PROCEDURE,
+                                       DESCRIPTION,
+                                       STATUS,
+                                       RUN_END)
+          VALUES (SYSDATE,
+                  SYSDATE,
+                  'SP_SYNC_CXP_MAIL_LDAP',
+                  v_mail || '-'|| err_code || '-' || err_msg,
+                  'ENEDED',
+                  '');
+
+      COMMIT;
+END;
+ 
